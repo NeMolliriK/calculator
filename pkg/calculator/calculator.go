@@ -1,9 +1,11 @@
 package calculator
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
+	"unicode"
 )
 
 type SubExpression struct {
@@ -138,12 +140,18 @@ func calculate(elements []string, logger *slog.Logger) float64 {
 	return answer
 }
 func ValidateExpression(expression string) error {
+	if len(expression) == 0 {
+		return errors.New("expression is empty")
+	}
 	if isExactlyArithmeticSign(rune(expression[0])) {
 		return &InvalidCharacterAtBeginningOrEndError{rune(expression[0])}
 	}
 	if isExactlyArithmeticSign(rune(expression[len(expression)-1])) {
 		return &InvalidCharacterAtBeginningOrEndError{rune(expression[len(expression)-
 			1])}
+	}
+	if len(expression) == 1 && unicode.IsDigit(rune(expression[0])) {
+		return nil
 	}
 	for n, char := range expression[:len(expression)-2] {
 		if isExactlyArithmeticSign(char) && isExactlyArithmeticSign(rune(expression[n+1])) ||
@@ -154,6 +162,9 @@ func ValidateExpression(expression string) error {
 	}
 	var fCounter, sCounter int
 	for _, char := range expression {
+		if !(isArithmeticSign(char) || unicode.IsDigit(char)) {
+			return &InvalidCharacter{char}
+		}
 		if char == '(' {
 			fCounter++
 		} else if char == ')' {
@@ -180,6 +191,13 @@ func Calc(expression string, logger *slog.Logger) (result float64, err error) {
 			err = fmt.Errorf("calculation error: %v", r)
 		}
 	}()
+	err = ValidateExpression(expression)
+	if err != nil {
+		return 0, err
+	}
+	if len(expression) == 1 {
+		return strconv.ParseFloat(expression, 64)
+	}
 	result = calculate(strToSlice(expression), logger)
 	return result, nil
 }

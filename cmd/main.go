@@ -3,9 +3,10 @@ package main
 import (
 	"calculator/internal/application"
 	"fmt"
-	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {

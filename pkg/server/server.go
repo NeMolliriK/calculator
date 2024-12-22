@@ -32,14 +32,19 @@ func CalculatorHandler(logger *slog.Logger) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			json.NewEncoder(w).Encode(ErrorData{Error: "Only POST method is allowed"})
+			json.NewEncoder(w).Encode(ErrorData{Error: "only POST method is allowed"})
 			return
 		}
 		var data RequestData
 		err := json.NewDecoder(r.Body).Decode(&data)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ErrorData{Error: "Invalid JSON"})
+			json.NewEncoder(w).Encode(ErrorData{Error: "invalid JSON"})
+			return
+		}
+		if data.Expression == "" {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			json.NewEncoder(w).Encode(ErrorData{Error: "no expression provided"})
 			return
 		}
 		err = calculator.ValidateExpression(data.Expression)
@@ -50,9 +55,9 @@ func CalculatorHandler(logger *slog.Logger) http.HandlerFunc {
 		}
 		result, err := calculator.Calc(data.Expression, logger)
 		if err != nil {
-			w.WriteHeader(http.StatusUnprocessableEntity)
+			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).
-				Encode(ErrorData{Error: "There's an unknown error in the expression"})
+				Encode(ErrorData{Error: "there's an unknown error in the expression"})
 			return
 		}
 		if math.IsInf(result, 0) {
@@ -73,8 +78,8 @@ func LoggingMiddleware(next http.HandlerFunc, logger *slog.Logger) http.HandlerF
 		var reqBody bytes.Buffer
 		_, err := io.Copy(&reqBody, r.Body)
 		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to read request body: %e", err))
-			http.Error(w, "Failed to process request", http.StatusInternalServerError)
+			logger.Error(fmt.Sprintf("failed to read request body: %e", err))
+			http.Error(w, "failed to process request", http.StatusInternalServerError)
 			return
 		}
 		r.Body = io.NopCloser(&reqBody)
@@ -102,5 +107,17 @@ func LoggingMiddleware(next http.HandlerFunc, logger *slog.Logger) http.HandlerF
 				),
 			),
 		)
+	}
+}
+func ErrorRecoveryMiddleware(next http.HandlerFunc, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				logger.Error(fmt.Sprintf("panic recovered: %v", rec))
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(ErrorData{Error: "internal server error"})
+			}
+		}()
+		next(w, r)
 	}
 }
