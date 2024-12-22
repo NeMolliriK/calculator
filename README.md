@@ -89,8 +89,8 @@ LOG_LEVEL=INFO
 
 Пример записи в лог-файл:
 ```
-INFO: Request Body: {"expression":"2+2"}
-INFO: Response Body: {"result":"4"}
+time=2024-12-23T01:05:17.905+05:00 level=INFO msg="HTTP Method: POST, Request Body: {    expression: 5+5}"
+time=2024-12-23T01:05:17.911+05:00 level=INFO msg="HTTP Response Code: 200, Response Body: {result:10}"
 ```
 
 ## Расширение функциональности
