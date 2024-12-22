@@ -52,7 +52,7 @@ curl --location "http://localhost:8080/api/v1/calculate" --header "Content-Type:
 git clone https://github.com/NeMolliriK/calculator
 cd calculator
 ```
-3. Инициализируйте Go-модуль (если этого еще не сделано):
+3. Инициализируйте Go-модуль (если этого ещё не сделано):
 ```bash
 go mod init calculator
 ```
