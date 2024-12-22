@@ -1,9 +1,7 @@
-package main
+package calculator
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 )
 
@@ -11,15 +9,6 @@ type SubExpression struct {
 	Start      int
 	End        int
 	Expression []string
-}
-type RequestData struct {
-	Expression string `json:"expression"`
-}
-type ResponseData struct {
-	Result string `json:"result"`
-}
-type ErrorData struct {
-	Error string `json:"error"`
 }
 
 func isArithmeticSign(r rune) bool {
@@ -201,41 +190,4 @@ func Calc(expression string) (result float64, err error) {
 	}()
 	result = calculate(strToSlice(expression))
 	return result, nil
-}
-func HelloHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(ErrorData{Error: "Only POST method is allowed"})
-		return
-	}
-	var data RequestData
-	err := json.NewDecoder(r.Body).Decode(&data)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorData{Error: "Invalid JSON"})
-		return
-	}
-	err = ValidateExpression(data.Expression)
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorData{Error: err.Error()})
-		return
-	}
-	result, err := Calc(data.Expression)
-	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		json.NewEncoder(w).Encode(ErrorData{Error: "There's an error in the expression"})
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ResponseData{Result: strconv.FormatFloat(result,
-		'f', -1, 64)})
-
-}
-func main() {
-	mux := http.NewServeMux()
-	mux.Handle("/api/v1/calculate", http.HandlerFunc(HelloHandler))
-	fmt.Println("The only endpoint is available at " +
-		"http://localhost:8080/api/v1/calculate")
-	http.ListenAndServe(":8080", mux)
 }
