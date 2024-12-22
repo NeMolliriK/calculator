@@ -105,11 +105,13 @@ func calculate(elements []string) float64 {
 		subExpression := subExpressions[0]
 		var offset int
 		newElements := append([]string{}, elements[:subExpression.Start]...)
-		newElements = append(newElements, fmt.Sprintf("%f", calculate(subExpression.Expression)))
+		newElements = append(newElements, fmt.Sprintf("%f", calculate(
+			subExpression.Expression)))
 		newElements = append(newElements, elements[subExpression.End:]...)
 		offset = len(subExpressions[0].Expression) + 1
 		for _, subExpression := range subExpressions[1:] {
-			newElements = append(newElements[:subExpression.Start-offset], fmt.Sprintf("%f", calculate(subExpression.Expression)))
+			newElements = append(newElements[:subExpression.Start-offset],
+				fmt.Sprintf("%f", calculate(subExpression.Expression)))
 			offset += len(subExpression.Expression) + 1
 			newElements = append(newElements, elements[subExpression.End:]...)
 		}
@@ -142,7 +144,8 @@ func calculate(elements []string) float64 {
 			if len(singleton) > 3 {
 				for n, element := range singleton[3 : len(singleton)-1] {
 					if n%2 == 0 {
-						subAnswer = multiplyOrDivide([]string{fmt.Sprintf("%f", subAnswer), element, singleton[n+4]})
+						subAnswer = multiplyOrDivide([]string{fmt.Sprintf(
+							"%f", subAnswer), element, singleton[n+4]})
 					}
 				}
 			}
@@ -150,6 +153,44 @@ func calculate(elements []string) float64 {
 		}
 	}
 	return answer
+}
+func ValidateExpression(expression string) error {
+	if isExactlyArithmeticSign(rune(expression[0])) {
+		return &InvalidCharacterAtBeginningOrEndError{rune(
+			expression[0])}
+	}
+	if isExactlyArithmeticSign(rune(expression[len(expression)-1])) {
+		return &InvalidCharacterAtBeginningOrEndError{rune(
+			expression[len(expression)-1])}
+	}
+	for n, char := range expression[:len(expression)-2] {
+		if isExactlyArithmeticSign(char) && isExactlyArithmeticSign(rune(
+			expression[n+1])) || char == '(' && isExactlyArithmeticSign(rune(
+			expression[n+1])) || expression[n+1] == ')' &&
+			isExactlyArithmeticSign(char) {
+			return &InvalidCharacterCombinationError{string(char) +
+				string(expression[n+1])}
+		}
+	}
+	var fCounter, sCounter int
+	for _, char := range expression {
+		if char == '(' {
+			fCounter++
+		} else if char == ')' {
+			if fCounter == 0 {
+				return &InvalidUseOfParentheses{"the expression " +
+					"contains a closing parenthesis without a preceding " +
+					"opening parenthesis"}
+			} else {
+				sCounter++
+			}
+		}
+	}
+	if fCounter != sCounter {
+		return &InvalidUseOfParentheses{"the number of opening " +
+			"parentheses does not equal the number of closing parentheses"}
+	}
+	return nil
 }
 func Calc(expression string) (result float64, err error) {
 	defer func() {
@@ -175,6 +216,11 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorData{Error: "Invalid JSON"})
 		return
 	}
+	err = ValidateExpression(data.Expression)
+	if err != nil {
+		json.NewEncoder(w).Encode(ErrorData{Error: err.Error()})
+		return
+	}
 	result, err := Calc(data.Expression)
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -182,12 +228,14 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ResponseData{Result: strconv.FormatFloat(result, 'f', -1, 64)})
+	json.NewEncoder(w).Encode(ResponseData{Result: strconv.FormatFloat(result,
+		'f', -1, 64)})
 
 }
 func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/api/v1/calculate", http.HandlerFunc(HelloHandler))
-	fmt.Println("The only endpoint is available at http://localhost:8080/api/v1/calculate")
+	fmt.Println("The only endpoint is available at " +
+		"http://localhost:8080/api/v1/calculate")
 	http.ListenAndServe(":8080", mux)
 }
