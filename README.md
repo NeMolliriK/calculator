@@ -52,11 +52,15 @@ curl --location "http://localhost:8080/api/v1/calculate" --header "Content-Type:
 git clone https://github.com/NeMolliriK/calculator
 cd calculator
 ```
-3. Запустите сервис командой:
+3. Установите зависимости:
+```bash
+go mod download github.com/joho/godotenv
+```
+4. Запустите сервис командой:
 ```bash
 go run cmd/main.go
 ```
-4. По умолчанию сервис будет доступен на `http://localhost:8080`.
+5. По умолчанию сервис будет доступен на `http://localhost:8080`.
 
 ## Тестирование
 
