@@ -24,7 +24,8 @@ type ErrorData struct {
 }
 type ResponseWriterWrapper struct {
 	http.ResponseWriter
-	Body *bytes.Buffer
+	Body       *bytes.Buffer
+	StatusCode int
 }
 
 func CalculatorHandler(logger *slog.Logger) http.HandlerFunc {
@@ -65,13 +66,16 @@ func CalculatorHandler(logger *slog.Logger) http.HandlerFunc {
 			json.NewEncoder(w).Encode(ErrorData{Error: "You can't divide by zero!"})
 			return
 		}
-		json.NewEncoder(w).Encode(ResponseData{Result: strconv.FormatFloat(result, 'f',
-			-1, 64)})
+		json.NewEncoder(w).Encode(ResponseData{Result: strconv.FormatFloat(result, 'f', -1, 64)})
 	}
 }
 func (rw *ResponseWriterWrapper) Write(b []byte) (int, error) {
 	rw.Body.Write(b)
 	return rw.ResponseWriter.Write(b)
+}
+func (rw *ResponseWriterWrapper) WriteHeader(statusCode int) {
+	rw.StatusCode = statusCode
+	rw.ResponseWriter.WriteHeader(statusCode)
 }
 func LoggingMiddleware(next http.HandlerFunc, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -85,23 +89,27 @@ func LoggingMiddleware(next http.HandlerFunc, logger *slog.Logger) http.HandlerF
 		r.Body = io.NopCloser(&reqBody)
 		logger.Info(
 			fmt.Sprintf(
-				"Request Body: %s",
+				"HTTP Method: %s, Request Body: %s",
+				r.Method,
 				strings.ReplaceAll(
-					strings.ReplaceAll(strings.ReplaceAll(reqBody.String(), "\r", ""),
-						"\n", ""),
+					strings.ReplaceAll(strings.ReplaceAll(reqBody.String(), "\r", ""), "\n", ""),
 					"\"",
 					"",
 				),
 			),
 		)
-		rw := &ResponseWriterWrapper{ResponseWriter: w, Body: &bytes.Buffer{}}
+		rw := &ResponseWriterWrapper{
+			ResponseWriter: w,
+			Body:           &bytes.Buffer{},
+			StatusCode:     http.StatusOK,
+		}
 		next.ServeHTTP(rw, r)
 		logger.Info(
 			fmt.Sprintf(
-				"Response Body: %s",
+				"HTTP Response Code: %d, Response Body: %s",
+				rw.StatusCode,
 				strings.ReplaceAll(
-					strings.ReplaceAll(strings.ReplaceAll(rw.Body.String(), "\r", ""),
-						"\n", ""),
+					strings.ReplaceAll(strings.ReplaceAll(rw.Body.String(), "\r", ""), "\n", ""),
 					"\"",
 					"",
 				),
