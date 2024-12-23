@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -17,7 +16,7 @@ type RequestData struct {
 	Expression string `json:"expression"`
 }
 type ResponseData struct {
-	Result string `json:"result"`
+	Result float64 `json:"result"`
 }
 type ErrorData struct {
 	Error string `json:"error"`
@@ -66,7 +65,7 @@ func CalculatorHandler(logger *slog.Logger) http.HandlerFunc {
 			json.NewEncoder(w).Encode(ErrorData{Error: "You can't divide by zero!"})
 			return
 		}
-		json.NewEncoder(w).Encode(ResponseData{Result: strconv.FormatFloat(result, 'f', -1, 64)})
+		json.NewEncoder(w).Encode(ResponseData{Result: result})
 	}
 }
 func (rw *ResponseWriterWrapper) Write(b []byte) (int, error) {
