@@ -16,11 +16,11 @@ func TestCalculatorHandler_Success(t *testing.T) {
 	tests := []struct {
 		name       string
 		input      string
-		expected   string
+		expected   float64
 		expectCode int
 	}{
-		{"Simple addition", `{"expression": "2+2"}`, "4", http.StatusOK},
-		{"Complex expression", `{"expression": "(2+3)*4"}`, "20", http.StatusOK},
+		{"Simple addition", `{"expression": "2+2"}`, 4, http.StatusOK},
+		{"Complex expression", `{"expression": "(2+3)*4"}`, 20, http.StatusOK},
 	}
 
 	for _, test := range tests {
@@ -45,7 +45,7 @@ func TestCalculatorHandler_Success(t *testing.T) {
 
 		if responseData.Result != test.expected {
 			t.Errorf(
-				"%s: expected result %s, got %s",
+				"%s: expected result %v, got %v",
 				test.name,
 				test.expected,
 				responseData.Result,
