@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -61,6 +62,7 @@ func loggingMiddleware() func(next http.Handler) http.Handler {
 			logger := loggers.GetLogger("server")
 			bodyBytes, _ := io.ReadAll(r.Body)
 			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+			cleanBody := strings.ReplaceAll(string(bodyBytes), "\r\n", "")
 			logger.Info(
 				"HTTP request",
 				"method",
@@ -68,7 +70,7 @@ func loggingMiddleware() func(next http.Handler) http.Handler {
 				"path",
 				r.URL.Path,
 				"body",
-				string(bodyBytes),
+				cleanBody,
 			)
 			rw := &ResponseWriterWrapper{
 				ResponseWriter: w,
@@ -77,12 +79,13 @@ func loggingMiddleware() func(next http.Handler) http.Handler {
 			}
 			next.ServeHTTP(rw, r)
 			duration := time.Since(start)
+			cleanBody = strings.ReplaceAll(rw.Body.String(), "\r\n", "")
 			logger.Info(
 				"HTTP response",
 				"status",
 				rw.StatusCode,
 				"body",
-				rw.Body.String(),
+				cleanBody,
 				"duration",
 				duration,
 			)
