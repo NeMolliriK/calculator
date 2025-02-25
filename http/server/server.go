@@ -61,11 +61,31 @@ func loggingMiddleware() func(next http.Handler) http.Handler {
 			logger := loggers.GetLogger("server")
 			bodyBytes, _ := io.ReadAll(r.Body)
 			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-			logger.Info("HTTP request", "method", r.Method, "path", r.URL.Path, "body", string(bodyBytes))
-			rw := &ResponseWriterWrapper{ResponseWriter: w, Body: &bytes.Buffer{}, StatusCode: http.StatusOK}
+			logger.Info(
+				"HTTP request",
+				"method",
+				r.Method,
+				"path",
+				r.URL.Path,
+				"body",
+				string(bodyBytes),
+			)
+			rw := &ResponseWriterWrapper{
+				ResponseWriter: w,
+				Body:           &bytes.Buffer{},
+				StatusCode:     http.StatusOK,
+			}
 			next.ServeHTTP(rw, r)
 			duration := time.Since(start)
-			logger.Info("HTTP response", "status", rw.StatusCode, "body", rw.Body.String(), "duration", duration)
+			logger.Info(
+				"HTTP response",
+				"status",
+				rw.StatusCode,
+				"body",
+				rw.Body.String(),
+				"duration",
+				duration,
+			)
 		})
 	}
 }

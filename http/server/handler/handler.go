@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -28,7 +29,8 @@ type ResponseWriterWrapper struct {
 
 func New(ctx context.Context) (http.Handler, error) {
 	serveMux := http.NewServeMux()
-	serveMux.HandleFunc("/api/v1/calculate", calculatorHandler)
+	serveMux.HandleFunc("/api/v1/calculate", calculatorAPIHandler)
+	serveMux.HandleFunc("/calculate", calculatorHandler)
 	return serveMux, nil
 }
 func Decorate(next http.Handler, ds ...Decorator) http.Handler {
@@ -38,7 +40,7 @@ func Decorate(next http.Handler, ds ...Decorator) http.Handler {
 	}
 	return decorated
 }
-func calculatorHandler(w http.ResponseWriter, r *http.Request) {
+func calculatorAPIHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -76,4 +78,19 @@ func calculatorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(ResponseData{Result: strconv.FormatFloat(result, 'f', -1, 64)})
+}
+func calculatorHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		htmlContent, err := os.ReadFile("templates/calculator.html")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Ошибка: не удалось загрузить шаблон"))
+			return
+		}
+		w.Write(htmlContent)
+		return
+	}
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	w.Write([]byte("Method not allowed"))
 }
