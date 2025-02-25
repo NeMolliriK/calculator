@@ -1,34 +1,36 @@
 package application
 
 import (
-	"calculator/pkg/server"
-	"fmt"
-	"log/slog"
-	"net/http"
+	"calculator/http/server"
+	"calculator/pkg/loggers"
+	"context"
+	"os"
+	"os/signal"
 )
 
-type Application struct {
-	logger *slog.Logger
-}
+type Application struct{}
 
-func New(logger *slog.Logger) *Application {
-	return &Application{
-		logger: logger,
-	}
+func New() *Application {
+	return &Application{}
 }
-func (a *Application) Run(port string) error {
-	mux := http.NewServeMux()
-	mux.Handle(
-		"/api/v1/calculate",
-		server.LoggingMiddleware(
-			server.ErrorRecoveryMiddleware(server.CalculatorHandler(a.logger), a.logger),
-			a.logger,
-		),
-	)
-	fmt.Println("The only endpoint is available at http://localhost:8080/api/v1/calculate")
-	err := http.ListenAndServe(fmt.Sprintf(":%s", port), mux)
+func (a *Application) Run(ctx context.Context) int {
+	logger := loggers.GetLogger("general")
+	shutDownFunc, err := server.Run(ctx)
 	if err != nil {
-		a.logger.Error("Failed to start the server", "error", err)
+		logger.Error(err.Error())
+		return 1
 	}
-	return err
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	ctx, cancel := context.WithCancel(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	<-c
+	cancel()
+	err = shutDownFunc(ctx)
+	if err != nil {
+		logger.Error(err.Error())
+		return 1
+	}
+	return 0
 }

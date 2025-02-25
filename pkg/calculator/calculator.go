@@ -1,9 +1,9 @@
 package calculator
 
 import (
+	"calculator/pkg/loggers"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"unicode"
 )
@@ -53,10 +53,11 @@ func strToSlice(expression string) []string {
 	}
 	return elements
 }
-func calculate(elements []string, logger *slog.Logger) float64 {
+func calculate(elements []string) float64 {
 	var subExpressions []SubExpression
 	var isStarted bool
 	var otherParentheses int
+	logger := loggers.GetLogger("calculator")
 	for n, s := range elements {
 		if isStarted {
 			if s == ")" {
@@ -84,19 +85,19 @@ func calculate(elements []string, logger *slog.Logger) float64 {
 		}
 	}
 	if len(subExpressions) > 0 {
-		logger.Debug(fmt.Sprintf("%+v", subExpressions))
+		logger.Debug("Calculation of subexpressions", "subexpressions", subExpressions)
 		subExpression := subExpressions[0]
 		var offset int
 		newElements := append([]string{}, elements[:subExpression.Start]...)
 		newElements = append(
 			newElements,
-			fmt.Sprintf("%f", calculate(subExpression.Expression, logger)),
+			fmt.Sprintf("%f", calculate(subExpression.Expression)),
 		)
 		newElements = append(newElements, elements[subExpression.End:]...)
 		offset = len(subExpressions[0].Expression) + 1
 		for _, subExpression := range subExpressions[1:] {
 			newElements = append(newElements[:subExpression.Start-offset],
-				fmt.Sprintf("%f", calculate(subExpression.Expression, logger)))
+				fmt.Sprintf("%f", calculate(subExpression.Expression)))
 			offset += len(subExpression.Expression) + 1
 			newElements = append(newElements, elements[subExpression.End:]...)
 		}
@@ -184,7 +185,7 @@ func ValidateExpression(expression string) error {
 	}
 	return nil
 }
-func Calc(expression string, logger *slog.Logger) (result float64, err error) {
+func Calc(expression string) (result float64, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			result = 0
@@ -198,6 +199,6 @@ func Calc(expression string, logger *slog.Logger) (result float64, err error) {
 	if len(expression) == 1 {
 		return strconv.ParseFloat(expression, 64)
 	}
-	result = calculate(strToSlice(expression), logger)
+	result = calculate(strToSlice(expression))
 	return result, nil
 }
