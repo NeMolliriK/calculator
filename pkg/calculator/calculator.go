@@ -85,7 +85,7 @@ func calculate(elements []string) float64 {
 		}
 	}
 	if len(subExpressions) > 0 {
-		logger.Debug("Calculation of subexpressions", "subexpressions", subExpressions)
+		logger.Debug("calculation of subexpressions", "subexpressions", subExpressions)
 		subExpression := subExpressions[0]
 		var offset int
 		newElements := append([]string{}, elements[:subExpression.Start]...)

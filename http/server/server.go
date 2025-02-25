@@ -1,20 +1,32 @@
 package server
 
 import (
+	"bytes"
 	"calculator/http/server/handler"
 	"calculator/pkg/loggers"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
 )
 
-type ErrorData struct {
-	Error string `json:"error"`
+type ResponseWriterWrapper struct {
+	http.ResponseWriter
+	Body       *bytes.Buffer
+	StatusCode int
 }
 
+func (rw *ResponseWriterWrapper) Write(b []byte) (int, error) {
+	rw.Body.Write(b)
+	return rw.ResponseWriter.Write(b)
+}
+func (rw *ResponseWriterWrapper) WriteHeader(statusCode int) {
+	rw.StatusCode = statusCode
+	rw.ResponseWriter.WriteHeader(statusCode)
+}
 func new(ctx context.Context) (http.Handler, error) {
 	muxHandler, err := handler.New(ctx)
 	if err != nil {
@@ -46,10 +58,14 @@ func loggingMiddleware() func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			next.ServeHTTP(w, r)
-			duration := time.Since(start)
 			logger := loggers.GetLogger("server")
-			logger.Info("HTTP request", slog.String("method", r.Method), slog.String("path", r.URL.Path), slog.Duration("duration", duration))
+			bodyBytes, _ := io.ReadAll(r.Body)
+			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+			logger.Info("HTTP request", "method", r.Method, "path", r.URL.Path, "body", string(bodyBytes))
+			rw := &ResponseWriterWrapper{ResponseWriter: w, Body: &bytes.Buffer{}, StatusCode: http.StatusOK}
+			next.ServeHTTP(rw, r)
+			duration := time.Since(start)
+			logger.Info("HTTP response", "status", rw.StatusCode, "body", rw.Body.String(), "duration", duration)
 		})
 	}
 }

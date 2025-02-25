@@ -77,34 +77,3 @@ func calculatorHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(ResponseData{Result: strconv.FormatFloat(result, 'f', -1, 64)})
 }
-
-//func (rw *ResponseWriterWrapper) Write(b []byte) (int, error) {
-//	rw.Body.Write(b)
-//	return rw.ResponseWriter.Write(b)
-//}
-//func (rw *ResponseWriterWrapper) WriteHeader(statusCode int) {
-//	rw.StatusCode = statusCode
-//	rw.ResponseWriter.WriteHeader(statusCode)
-//}
-
-//func (a *Application) Run(port string) error {
-//	err := godotenv.Load()
-//	if err != nil {
-//		fmt.Println("Warning: .env file not found, falling back to system environment variables")
-//	}
-//	loggers := setupLogger()
-//	mux := http.NewServeMux()
-//	mux.Handle(
-//		"/api/v1/calculate",
-//		server.LoggingMiddleware(
-//			server.ErrorRecoveryMiddleware(server.CalculatorHandler(a.loggers), a.loggers),
-//			a.loggers,
-//		),
-//	)
-//	fmt.Println("The only endpoint is available at http://localhost:8080/api/v1/calculate")
-//	err := http.ListenAndServe(fmt.Sprintf(":%s", port), mux)
-//	if err != nil {
-//		a.loggers.Error("Failed to start the server", "error", err)
-//	}
-//	return err
-//}
