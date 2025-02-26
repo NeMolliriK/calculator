@@ -59,17 +59,10 @@ func calculatorAPIHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorData{Error: "no expression provided"})
 		return
 	}
-	err = calculator.ValidateExpression(data.Expression)
-	if err != nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		json.NewEncoder(w).Encode(ErrorData{Error: err.Error()})
-		return
-	}
 	result, err := calculator.Calc(data.Expression)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).
-			Encode(ErrorData{Error: "there's an unknown error in the expression"})
+		json.NewEncoder(w).Encode(ErrorData{Error: err.Error()})
 		return
 	}
 	if math.IsInf(result, 0) {

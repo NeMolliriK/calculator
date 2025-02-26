@@ -52,7 +52,7 @@ func Run(ctx context.Context) (func(context.Context) error, error) {
 			logger.Error("ListenAndServe", slog.String("err", err.Error()))
 		}
 	}()
-	fmt.Printf("The only endpoint is available at http://localhost:%s/api/v1/calculate", port)
+	fmt.Printf("The server is running at http://localhost:%s/", port)
 	return srv.Shutdown, nil
 }
 func loggingMiddleware() func(next http.Handler) http.Handler {
