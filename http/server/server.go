@@ -5,6 +5,7 @@ import (
 	"calculator/http/server/handler"
 	"calculator/pkg/loggers"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -89,6 +90,19 @@ func loggingMiddleware() func(next http.Handler) http.Handler {
 				"duration",
 				duration,
 			)
+		})
+	}
+}
+
+func errorRecoveryMiddleware() func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if rec := recover(); rec != nil {
+				logger := loggers.GetLogger("server")
+				logger.Error("panic recovered", "error", rec)
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(handler.ErrorData{Error: "internal server error"})
+			}
 		})
 	}
 }

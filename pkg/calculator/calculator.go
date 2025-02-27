@@ -2,8 +2,11 @@ package calculator
 
 import (
 	"calculator/pkg/loggers"
+	"calculator/pkg/structures"
 	"errors"
+	"os"
 	"strconv"
+	"time"
 	"unicode"
 )
 
@@ -21,13 +24,8 @@ type token struct {
 	val string
 }
 
-type resultWithError struct {
-	value float64
-	err   error
-}
-
 type Future struct {
-	result chan resultWithError
+	result chan structures.ResultWithError
 }
 
 func tokenize(expr string) ([]token, error) {
@@ -130,31 +128,51 @@ func shuntingYard(tokens []token) ([]token, error) {
 }
 
 func NewFuture() *Future {
-	return &Future{result: make(chan resultWithError, 1)}
+	return &Future{result: make(chan structures.ResultWithError, 1)}
 }
 
 func (f *Future) SetResult(val float64, err error) {
-	f.result <- resultWithError{value: val, err: err}
+	f.result <- structures.ResultWithError{Value: val, Err: err}
 }
 
 func (f *Future) Get() (float64, error) {
 	res := <-f.result
-	return res.value, res.err
+	return res.Value, res.Err
 }
 
 func calculate(a, b float64, operator string, f *Future, sem chan struct{}) {
 	defer func() { <-sem }()
 	switch operator {
 	case "+":
+		t, err := strconv.Atoi(os.Getenv("TIME_ADDITION_MS"))
+		if err != nil {
+			t = 1000
+		}
+		time.Sleep(time.Duration(t) * time.Millisecond)
 		f.SetResult(a+b, nil)
 	case "-":
+		t, err := strconv.Atoi(os.Getenv("TIME_SUBTRACTION_MS"))
+		if err != nil {
+			t = 1000
+		}
+		time.Sleep(time.Duration(t) * time.Millisecond)
 		f.SetResult(a-b, nil)
 	case "*":
+		t, err := strconv.Atoi(os.Getenv("TIME_MULTIPLICATIONS_MS"))
+		if err != nil {
+			t = 1000
+		}
+		time.Sleep(time.Duration(t) * time.Millisecond)
 		f.SetResult(a*b, nil)
 	case "/":
 		if b == 0 {
 			f.SetResult(0, errors.New("division by zero"))
 		}
+		t, err := strconv.Atoi(os.Getenv("TIME_DIVISIONS_MS"))
+		if err != nil {
+			t = 1000
+		}
+		time.Sleep(time.Duration(t) * time.Millisecond)
 		f.SetResult(a/b, nil)
 	default:
 		f.SetResult(0, errors.New("unknown operator: "+operator))
@@ -169,7 +187,11 @@ func WrapValueAsFuture(val float64) *Future {
 
 func evalRPN(tokens []token) (float64, error) {
 	var stack []*Future
-	sem := make(chan struct{}, 10)
+	n, err := strconv.Atoi(os.Getenv("COMPUTING_POWER"))
+	if err != nil {
+		n = 10
+	}
+	sem := make(chan struct{}, n)
 	for _, tok := range tokens {
 		switch tok.typ {
 		case tokenNumber:
@@ -207,14 +229,23 @@ func evalRPN(tokens []token) (float64, error) {
 	return result, nil
 }
 
-func Calc(expression string) (float64, error) {
-	tokens, err := tokenize(expression)
+func Calc(expression *structures.Expression) {
+	expression.Status = "processing"
+	tokens, err := tokenize(expression.Data)
 	if err != nil {
-		return 0, err
+		expression.Status = "calculation error: " + err.Error()
+		return
 	}
 	rpn, err := shuntingYard(tokens)
 	if err != nil {
-		return 0, err
+		expression.Status = "calculation error: " + err.Error()
+		return
 	}
-	return evalRPN(rpn)
+	res, err := evalRPN(rpn)
+	if err != nil {
+		expression.Status = "calculation error: " + err.Error()
+	} else {
+		expression.Status = "completed"
+	}
+	expression.Result = res
 }
