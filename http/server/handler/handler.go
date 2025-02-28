@@ -5,11 +5,13 @@ import (
 	"calculator/pkg/calculator"
 	"calculator/pkg/structures"
 	"context"
+	"embed"
 	"encoding/json"
-	"github.com/google/uuid"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 type Decorator func(http.Handler) http.Handler
@@ -48,12 +50,20 @@ type ExpressionsResponse struct {
 
 var (
 	expressionsMap sync.Map
+	//go:embed templates/*
+	webFiles embed.FS
 )
 
 func New(ctx context.Context) (http.Handler, error) {
 	serveMux := http.NewServeMux()
+	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" && r.Method == http.MethodGet {
+			indexHandler(w, r)
+			return
+		}
+		http.NotFound(w, r)
+	})
 	serveMux.HandleFunc("/api/v1/calculate", calculatorAPIHandler)
-	//serveMux.HandleFunc("/calculate", calculatorHandler)
 	serveMux.HandleFunc("/api/v1/expressions", expressionsHandler)
 	serveMux.HandleFunc("/api/v1/expressions/", expressionHandler)
 	return serveMux, nil
@@ -87,7 +97,12 @@ func calculatorAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expressionID := uuid.New().String()
-	expression := structures.Expression{ID: expressionID, Data: data.Expression, Status: "pending", Result: 0}
+	expression := structures.Expression{
+		ID:     expressionID,
+		Data:   data.Expression,
+		Status: "pending",
+		Result: 0,
+	}
 	expressionsMap.Store(expressionID, &expression)
 	w.WriteHeader(http.StatusCreated)
 	go calculator.Calc(&expression)
@@ -105,7 +120,10 @@ func expressionsHandler(w http.ResponseWriter, r *http.Request) {
 	expressionsMap.Range(func(key, value interface{}) bool {
 		k := key.(string)
 		v := value.(*structures.Expression)
-		expressions.Expressions = append(expressions.Expressions, ExpressionResponse{k, v.Status, v.Result})
+		expressions.Expressions = append(
+			expressions.Expressions,
+			ExpressionResponse{k, v.Status, v.Result},
+		)
 		return true
 	})
 	json.NewEncoder(w).Encode(expressions)
@@ -132,4 +150,14 @@ func expressionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	expression := value.(*structures.Expression)
 	json.NewEncoder(w).Encode(ExpressionResponse{parts[4], expression.Status, expression.Result})
+}
+
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := webFiles.ReadFile("templates/index.html")
+	if err != nil {
+		http.Error(w, "index.html not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data)
 }
