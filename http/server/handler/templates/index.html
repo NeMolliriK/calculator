@@ -1,38 +1,35 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Калькулятор</title>
-  <!-- Bootstrap из CDN -->
+  <meta charset="UTF-8"/>
+  <title>Calculator</title>
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
   >
 </head>
 <body class="bg-light">
 <div class="container py-5">
-  <h1 class="mb-4">Калькулятор</h1>
-
+  <h1 class="mb-4">Calculator</h1>
   <div class="mb-3">
-    <label for="expression" class="form-label">Введите выражение</label>
-    <input type="text" id="expression" class="form-control" placeholder="Например: 1+2*(3-4)" />
+    <label for="expression" class="form-label">Enter an expression</label>
+    <input type="text" id="expression" class="form-control"
+           placeholder="Например: 1+2*(3-4)"/>
   </div>
-  <button id="calculateBtn" class="btn btn-primary mb-3">Вычислить</button>
-
+  <button id="calculateBtn" class="btn btn-primary mb-3">Calculate</button>
   <div id="resultArea" class="alert alert-info d-none"></div>
-
   <hr>
-  <h2>Все вычисления</h2>
-  <button id="refreshBtn" class="btn btn-secondary mb-3">Обновить список</button>
+  <h2>All calculations</h2>
+  <button id="refreshBtn" class="btn btn-secondary mb-3">Update the list
+  </button>
   <table class="table table-striped" id="exprTable">
     <thead>
     <tr>
       <th>ID</th>
-      <th>Статус</th>
-      <th>Результат</th>
+      <th>Status</th>
+      <th>Result</th>
     </tr>
     </thead>
     <tbody>
-    <!-- Строки с вычислениями будем добавлять динамически -->
     </tbody>
   </table>
 </div>
@@ -44,57 +41,45 @@
         const resultArea = document.getElementById('resultArea');
         const refreshBtn = document.getElementById('refreshBtn');
         const exprTableBody = document.querySelector('#exprTable tbody');
-
-        // Кнопка отправки запроса на вычисление
         calculateBtn.addEventListener('click', async () => {
             const expression = expressionInput.value.trim();
             if (!expression) {
-                alert('Пожалуйста, введите выражение!');
+                alert('Please enter an expression!');
                 return;
             }
             try {
                 const res = await fetch('/api/v1/calculate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ expression }),
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({expression}),
                 });
                 if (res.ok) {
                     const data = await res.json();
                     resultArea.classList.remove('d-none');
-                    // Предположим, что сервер возвращает { "id": "...some-uuid..." }
-                    resultArea.textContent = 'Вычислению присвоен ID: ' + data.id;
-                    // Очищаем поле ввода
+                    resultArea.textContent = 'An ID has been assigned to the calculation: ' + data.id;
                     expressionInput.value = '';
-                    // Обновим таблицу
                     loadAllExpressions();
                 } else {
                     const errData = await res.json();
-                    alert('Ошибка: ' + errData.error);
+                    alert('Error: ' + errData.error);
                 }
             } catch (err) {
-                alert('Произошла ошибка при запросе: ' + err);
+                alert('There was a query error: ' + err);
             }
         });
 
-        // Функция подгрузки списка всех вычислений
         async function loadAllExpressions() {
             try {
                 const res = await fetch('/api/v1/expressions');
                 if (!res.ok) {
                     const errData = await res.json();
-                    alert('Ошибка: ' + errData.error);
+                    alert('Error: ' + errData.error);
                     return;
                 }
                 const data = await res.json();
-
-                // Берём либо data.expressions, либо (если null/undefined) пустой массив
                 const expressions = data.expressions || [];
-
-                // Очищаем старые записи в таблице
                 exprTableBody.innerHTML = '';
-
                 expressions.forEach(expr => {
-                    // expr = { id, status, result }
                     const row = document.createElement('tr');
                     row.innerHTML = `
           <td>${expr.id}</td>
@@ -104,16 +89,12 @@
                     exprTableBody.appendChild(row);
                 });
             } catch (err) {
-                alert('Произошла ошибка при запросе: ' + err);
+                alert('There was a query error: ' + err);
             }
         }
-
-        // Кнопка "Обновить список"
         refreshBtn.addEventListener('click', () => {
             loadAllExpressions();
         });
-
-        // При первой загрузке страницы сразу подгрузим список
         loadAllExpressions();
     });
 </script>
