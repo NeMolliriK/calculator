@@ -2,203 +2,250 @@ package calculator
 
 import (
 	"calculator/pkg/loggers"
+	"calculator/pkg/structures"
 	"errors"
-	"fmt"
+	"os"
 	"strconv"
+	"time"
 	"unicode"
 )
 
-type SubExpression struct {
-	Start      int
-	End        int
-	Expression []string
+type tokenType int
+
+const (
+	tokenNumber tokenType = iota
+	tokenOperator
+	tokenLParen
+	tokenRParen
+)
+
+type token struct {
+	typ tokenType
+	val string
 }
 
-func isArithmeticSign(r rune) bool {
-	for _, item := range [6]rune{'+', '-', '/', '*', '(', ')'} {
-		if item == r {
-			return true
-		}
-	}
-	return false
+type Future struct {
+	result chan structures.ResultWithError
 }
-func isExactlyArithmeticSign(r rune) bool {
-	for _, item := range [4]rune{'+', '-', '/', '*'} {
-		if item == r {
-			return true
-		}
-	}
-	return false
-}
-func multiplyOrDivide(singleton []string) float64 {
-	num, _ := strconv.ParseFloat(singleton[0], 64)
-	num_2, _ := strconv.ParseFloat(singleton[2], 64)
-	if singleton[1] == "*" {
-		return num * num_2
-	}
-	return num / num_2
-}
-func strToSlice(expression string) []string {
-	var elements []string
-	var previous string
-	for _, s := range expression {
-		if previous == "" || isArithmeticSign([]rune(previous)[0]) != isArithmeticSign(s) ||
-			isArithmeticSign(s) {
-			elements = append(elements, string(s))
-			previous = string(s)
-		} else {
-			elements[len(elements)-1] += string(s)
-			previous = elements[len(elements)-1]
-		}
-	}
-	return elements
-}
-func calculate(elements []string) float64 {
-	var subExpressions []SubExpression
-	var isStarted bool
-	var otherParentheses int
+
+func tokenize(expr string) ([]token, error) {
+	var tokens []token
 	logger := loggers.GetLogger("calculator")
-	for n, s := range elements {
-		if isStarted {
-			if s == ")" {
-				if otherParentheses > 0 {
-					otherParentheses--
-					subExpressions[len(subExpressions)-1].Expression = append(
-						subExpressions[len(subExpressions)-1].Expression,
-						s,
-					)
-					continue
-				}
-				isStarted = false
-				subExpressions[len(subExpressions)-1].End = n + 1
-			} else if s == "(" {
-				otherParentheses++
-				subExpressions[len(subExpressions)-1].Expression = append(subExpressions[len(
-					subExpressions)-1].Expression, s)
-			} else {
-				subExpressions[len(subExpressions)-1].Expression = append(subExpressions[len(
-					subExpressions)-1].Expression, s)
-			}
-		} else if s == "(" {
-			isStarted = true
-			subExpressions = append(subExpressions, SubExpression{Start: n, End: n + 1, Expression: []string{}})
+	i := 0
+	for i < len(expr) {
+		ch := expr[i]
+		if ch == ' ' {
+			i++
+			continue
 		}
-	}
-	if len(subExpressions) > 0 {
-		logger.Debug("calculation of subexpressions", "subexpressions", subExpressions)
-		subExpression := subExpressions[0]
-		var offset int
-		newElements := append([]string{}, elements[:subExpression.Start]...)
-		newElements = append(
-			newElements,
-			fmt.Sprintf("%f", calculate(subExpression.Expression)),
-		)
-		newElements = append(newElements, elements[subExpression.End:]...)
-		offset = len(subExpressions[0].Expression) + 1
-		for _, subExpression := range subExpressions[1:] {
-			newElements = append(newElements[:subExpression.Start-offset],
-				fmt.Sprintf("%f", calculate(subExpression.Expression)))
-			offset += len(subExpression.Expression) + 1
-			newElements = append(newElements, elements[subExpression.End:]...)
-		}
-		elements = newElements
-	}
-	for n, element := range elements {
-		if element == "-" {
-			elements[n] = "+"
-			elements[n+1] = "-" + elements[n+1]
-		}
-	}
-	var singletons [][]string
-	var lastSingleton []string
-	for _, element := range elements {
-		if element == "+" {
-			singletons = append(singletons, lastSingleton)
-			lastSingleton = []string{}
-		} else {
-			lastSingleton = append(lastSingleton, element)
-		}
-	}
-	singletons = append(singletons, lastSingleton)
-	var answer float64
-	for _, singleton := range singletons {
-		if len(singleton) == 1 {
-			num, _ := strconv.ParseFloat(singleton[0], 64)
-			answer += num
-		} else {
-			subAnswer := multiplyOrDivide(singleton[:3])
-			if len(singleton) > 3 {
-				for n, element := range singleton[3 : len(singleton)-1] {
-					if n%2 == 0 {
-						subAnswer = multiplyOrDivide([]string{fmt.Sprintf("%f", subAnswer),
-							element, singleton[n+4]})
+		// Число может состоять из цифр и, возможно, одной десятичной точки.
+		if unicode.IsDigit(rune(ch)) || ch == '.' {
+			start := i
+			dotCount := 0
+			for i < len(expr) && (unicode.IsDigit(rune(expr[i])) || expr[i] == '.') {
+				if expr[i] == '.' {
+					dotCount++
+					if dotCount > 1 {
+						return nil, errors.New("invalid number format")
 					}
 				}
+				i++
 			}
-			answer += subAnswer
+			tokens = append(tokens, token{typ: tokenNumber, val: expr[start:i]})
+		} else if ch == '+' || ch == '-' || ch == '*' || ch == '/' {
+			tokens = append(tokens, token{typ: tokenOperator, val: string(ch)})
+			i++
+		} else if ch == '(' {
+			tokens = append(tokens, token{typ: tokenLParen, val: string(ch)})
+			i++
+		} else if ch == ')' {
+			tokens = append(tokens, token{typ: tokenRParen, val: string(ch)})
+			i++
+		} else {
+			return nil, errors.New("invalid character: " + string(ch))
 		}
 	}
-	return answer
+	logger.Debug("tokenize", "tokens", tokens)
+	return tokens, nil
 }
-func ValidateExpression(expression string) error {
-	if len(expression) == 0 {
-		return errors.New("expression is empty")
+
+func precedence(op string) int {
+	switch op {
+	case "+", "-":
+		return 1
+	case "*", "/":
+		return 2
 	}
-	if isExactlyArithmeticSign(rune(expression[0])) {
-		return &InvalidCharacterAtBeginningOrEndError{rune(expression[0])}
-	}
-	if isExactlyArithmeticSign(rune(expression[len(expression)-1])) {
-		return &InvalidCharacterAtBeginningOrEndError{rune(expression[len(expression)-
-			1])}
-	}
-	if len(expression) == 1 && unicode.IsDigit(rune(expression[0])) {
-		return nil
-	}
-	for n, char := range expression[:len(expression)-2] {
-		if isExactlyArithmeticSign(char) && isExactlyArithmeticSign(rune(expression[n+1])) ||
-			char == '(' && isExactlyArithmeticSign(rune(expression[n+1])) ||
-			expression[n+1] == ')' && isExactlyArithmeticSign(char) {
-			return &InvalidCharacterCombinationError{string(char) + string(expression[n+1])}
-		}
-	}
-	var fCounter, sCounter int
-	for _, char := range expression {
-		if !(isArithmeticSign(char) || unicode.IsDigit(char)) {
-			return &InvalidCharacter{char}
-		}
-		if char == '(' {
-			fCounter++
-		} else if char == ')' {
-			if fCounter == 0 {
-				return &InvalidUseOfParentheses{"the expression contains a closing " +
-					"parenthesis without a preceding opening parenthesis"}
-			} else {
-				sCounter++
+	return 0
+}
+
+func shuntingYard(tokens []token) ([]token, error) {
+	var output []token
+	var stack []token
+	for _, tok := range tokens {
+		switch tok.typ {
+		case tokenNumber:
+			output = append(output, tok)
+		case tokenOperator:
+			for len(stack) > 0 {
+				top := stack[len(stack)-1]
+				if top.typ == tokenOperator && precedence(top.val) >= precedence(tok.val) {
+					output = append(output, top)
+					stack = stack[:len(stack)-1]
+				} else {
+					break
+				}
+			}
+			stack = append(stack, tok)
+		case tokenLParen:
+			stack = append(stack, tok)
+		case tokenRParen:
+			foundLParen := false
+			for len(stack) > 0 {
+				top := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				if top.typ == tokenLParen {
+					foundLParen = true
+					break
+				} else {
+					output = append(output, top)
+				}
+			}
+			if !foundLParen {
+				return nil, errors.New("bracket mismatch")
 			}
 		}
 	}
-	if fCounter != sCounter {
-		return &InvalidUseOfParentheses{
-			"the number of opening parentheses does not equal the number of closing " +
-				"parentheses",
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if top.typ == tokenLParen || top.typ == tokenRParen {
+			return nil, errors.New("bracket mismatch")
+		}
+		output = append(output, top)
+	}
+	return output, nil
+}
+
+func NewFuture() *Future {
+	return &Future{result: make(chan structures.ResultWithError, 1)}
+}
+
+func (f *Future) SetResult(val float64, err error) {
+	f.result <- structures.ResultWithError{Value: val, Err: err}
+}
+
+func (f *Future) Get() (float64, error) {
+	res := <-f.result
+	return res.Value, res.Err
+}
+
+func calculate(a, b float64, operator string, f *Future, sem chan struct{}) {
+	defer func() { <-sem }()
+	switch operator {
+	case "+":
+		t, err := strconv.Atoi(os.Getenv("TIME_ADDITION_MS"))
+		if err != nil {
+			t = 1000
+		}
+		time.Sleep(time.Duration(t) * time.Millisecond)
+		f.SetResult(a+b, nil)
+	case "-":
+		t, err := strconv.Atoi(os.Getenv("TIME_SUBTRACTION_MS"))
+		if err != nil {
+			t = 1000
+		}
+		time.Sleep(time.Duration(t) * time.Millisecond)
+		f.SetResult(a-b, nil)
+	case "*":
+		t, err := strconv.Atoi(os.Getenv("TIME_MULTIPLICATIONS_MS"))
+		if err != nil {
+			t = 1000
+		}
+		time.Sleep(time.Duration(t) * time.Millisecond)
+		f.SetResult(a*b, nil)
+	case "/":
+		if b == 0 {
+			f.SetResult(0, errors.New("division by zero"))
+		}
+		t, err := strconv.Atoi(os.Getenv("TIME_DIVISIONS_MS"))
+		if err != nil {
+			t = 1000
+		}
+		time.Sleep(time.Duration(t) * time.Millisecond)
+		f.SetResult(a/b, nil)
+	default:
+		f.SetResult(0, errors.New("unknown operator: "+operator))
+	}
+}
+
+func WrapValueAsFuture(val float64) *Future {
+	future := NewFuture()
+	future.SetResult(val, nil)
+	return future
+}
+
+func evalRPN(tokens []token) (float64, error) {
+	var stack []*Future
+	n, err := strconv.Atoi(os.Getenv("COMPUTING_POWER"))
+	if err != nil {
+		n = 10
+	}
+	sem := make(chan struct{}, n)
+	for _, tok := range tokens {
+		switch tok.typ {
+		case tokenNumber:
+			num, err := strconv.ParseFloat(tok.val, 64)
+			if err != nil {
+				return 0, err
+			}
+			stack = append(stack, WrapValueAsFuture(num))
+		case tokenOperator:
+			if len(stack) < 2 {
+				return 0, errors.New("invalid expression")
+			}
+			b, err := stack[len(stack)-1].Get()
+			if err != nil {
+				return 0, err
+			}
+			a, err := stack[len(stack)-2].Get()
+			if err != nil {
+				return 0, err
+			}
+			stack = stack[:len(stack)-2]
+			sem <- struct{}{}
+			future := NewFuture()
+			stack = append(stack, future)
+			go calculate(a, b, tok.val, future, sem)
 		}
 	}
-	return nil
-}
-func Calc(expression string) (result float64, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			result = 0
-			err = fmt.Errorf("calculation error: %v", r)
-		}
-	}()
-	err = ValidateExpression(expression)
+	if len(stack) != 1 {
+		return 0, errors.New("invalid expression")
+	}
+	result, err := stack[0].Get()
 	if err != nil {
 		return 0, err
 	}
-	if len(expression) == 1 {
-		return strconv.ParseFloat(expression, 64)
-	}
-	result = calculate(strToSlice(expression))
 	return result, nil
+}
+
+func Calc(expression *structures.Expression) {
+	expression.Status = "processing"
+	tokens, err := tokenize(expression.Data)
+	if err != nil {
+		expression.Status = "calculation error: " + err.Error()
+		return
+	}
+	rpn, err := shuntingYard(tokens)
+	if err != nil {
+		expression.Status = "calculation error: " + err.Error()
+		return
+	}
+	res, err := evalRPN(rpn)
+	if err != nil {
+		expression.Status = "calculation error: " + err.Error()
+	} else {
+		expression.Status = "completed"
+	}
+	expression.Result = res
 }

@@ -5,8 +5,9 @@ import (
 	"calculator/pkg/loggers"
 	"context"
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
