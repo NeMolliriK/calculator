@@ -3,7 +3,7 @@ package handler
 import (
 	"bytes"
 	"calculator/pkg/calculator"
-	"calculator/pkg/structures"
+	"calculator/pkg/global"
 	"context"
 	"embed"
 	"encoding/json"
@@ -48,6 +48,11 @@ type ExpressionsResponse struct {
 	Expressions []ExpressionResponse `json:"expressions"`
 }
 
+type SolvedTaskResponse struct {
+	ID     string  `json:"id"`
+	Result float64 `json:"result"`
+}
+
 var (
 	expressionsMap sync.Map
 	//go:embed templates/*
@@ -66,6 +71,7 @@ func New(ctx context.Context) (http.Handler, error) {
 	serveMux.HandleFunc("/api/v1/calculate", calculatorAPIHandler)
 	serveMux.HandleFunc("/api/v1/expressions", expressionsHandler)
 	serveMux.HandleFunc("/api/v1/expressions/", expressionHandler)
+	serveMux.HandleFunc("/internal/task", taskHandler)
 	return serveMux, nil
 }
 
@@ -97,7 +103,7 @@ func calculatorAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expressionID := uuid.New().String()
-	expression := structures.Expression{
+	expression := global.Expression{
 		ID:     expressionID,
 		Data:   data.Expression,
 		Status: "pending",
@@ -119,7 +125,7 @@ func expressionsHandler(w http.ResponseWriter, r *http.Request) {
 	expressions := ExpressionsResponse{}
 	expressionsMap.Range(func(key, value interface{}) bool {
 		k := key.(string)
-		v := value.(*structures.Expression)
+		v := value.(*global.Expression)
 		expressions.Expressions = append(
 			expressions.Expressions,
 			ExpressionResponse{k, v.Status, v.Result},
@@ -130,7 +136,6 @@ func expressionsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func expressionHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorData{Error: "only GET method is allowed"})
@@ -148,8 +153,50 @@ func expressionHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorData{Error: "there is no such expression"})
 		return
 	}
-	expression := value.(*structures.Expression)
+	expression := value.(*global.Expression)
 	json.NewEncoder(w).Encode(ExpressionResponse{parts[4], expression.Status, expression.Result})
+}
+
+func taskHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method == http.MethodGet {
+		var count int
+		global.TasksMap.Range(func(key, value interface{}) bool {
+			count++
+			k := key.(string)
+			v := value.(*global.Task)
+			json.NewEncoder(w).Encode(v)
+			global.TasksMap.Delete(k)
+			return false
+		})
+		if count == 0 {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	} else if r.Method == http.MethodPost {
+		var data SolvedTaskResponse
+		err := json.NewDecoder(r.Body).Decode(&data)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorData{Error: "invalid JSON"})
+			return
+		}
+		futureInterface, ok := global.FuturesMap.Load(data.ID)
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(ErrorData{Error: "there is no such task"})
+			return
+		}
+		future, ok := futureInterface.(*global.Future)
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorData{Error: "server error"})
+			return
+		}
+		future.SetResult(data.Result)
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorData{Error: "only GET and POST methods are allowed"})
+	}
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {

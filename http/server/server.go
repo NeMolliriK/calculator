@@ -36,7 +36,8 @@ func new(ctx context.Context) (http.Handler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("handler initialization error: %w", err)
 	}
-	muxHandler = handler.Decorate(muxHandler, errorRecoveryMiddleware(), loggingMiddleware())
+	//muxHandler = handler.Decorate(muxHandler, errorRecoveryMiddleware(), loggingMiddleware())
+	muxHandler = handler.Decorate(muxHandler, errorRecoveryMiddleware())
 	return muxHandler, nil
 }
 

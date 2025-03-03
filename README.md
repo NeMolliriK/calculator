@@ -50,8 +50,8 @@ curl --location 'http://localhost:8080/api/v1/expressions'
 Ответ:
 ```json
 {"expressions": [
-   {"id": "abc123", "status": "processing", "result": 0},
-   {"id": "xyz789", "status": "completed", "result": 6}
+   {"id": "abc123", "status": "processing", "Result": 0},
+   {"id": "xyz789", "status": "completed", "Result": 6}
 ]}
 ```
 
@@ -61,7 +61,7 @@ curl --location 'http://localhost:8080/api/v1/expressions/abc123'
 ```
 Ответ:
 ```json
-{"id": "abc123", "status": "completed", "result": 4}
+{"id": "abc123", "status": "completed", "Result": 4}
 ```
 
 ## Инструкция по запуску
@@ -70,7 +70,7 @@ curl --location 'http://localhost:8080/api/v1/expressions/abc123'
 2. Клонируйте репозиторий:
 ```bash
 git clone https://github.com/NeMolliriK/calculator
-cd calculator
+cd orchestrator
 ```
 3. Установите зависимости:
 ```bash
@@ -109,7 +109,7 @@ go test ./...
 ```
 time=2025-02-27T02:06:43.966+05:00 level=DEBUG msg=tokenize tokens="[{typ:0 val:5} {typ:1 val:*} {typ:2 val:(} {typ:0 val:47.5} {typ:1 val:/} {typ:2 val:(} {typ:0 val:3} {typ:1 val:-} {typ:0 val:7} {typ:3 val:)} {typ:3 val:)} {typ:3 val:)}]"
 time=2025-02-28T02:23:25.948+05:00 level=ERROR msg="context canceled"
-time=2025-02-26T03:01:33.789+05:00 level=INFO msg="HTTP response" status=200 body="{\"result\":\"-59.375\"}\n" duration=0s
+time=2025-02-26T03:01:33.789+05:00 level=INFO msg="HTTP response" status=200 body="{\"Result\":\"-59.375\"}\n" duration=0s
 ```
 
 ## Переменные окружения

@@ -1,13 +1,14 @@
 package calculator
 
 import (
+	"calculator/pkg/global"
 	"calculator/pkg/loggers"
-	"calculator/pkg/structures"
 	"errors"
 	"os"
 	"strconv"
-	"time"
 	"unicode"
+
+	"github.com/google/uuid"
 )
 
 type tokenType int
@@ -24,13 +25,9 @@ type token struct {
 	val string
 }
 
-type Future struct {
-	result chan structures.ResultWithError
-}
-
 func tokenize(expr string) ([]token, error) {
 	var tokens []token
-	logger := loggers.GetLogger("calculator")
+	logger := loggers.GetLogger("orchestrator")
 	i := 0
 	for i < len(expr) {
 		ch := expr[i]
@@ -127,71 +124,14 @@ func shuntingYard(tokens []token) ([]token, error) {
 	return output, nil
 }
 
-func NewFuture() *Future {
-	return &Future{result: make(chan structures.ResultWithError, 1)}
-}
-
-func (f *Future) SetResult(val float64, err error) {
-	f.result <- structures.ResultWithError{Value: val, Err: err}
-}
-
-func (f *Future) Get() (float64, error) {
-	res := <-f.result
-	return res.Value, res.Err
-}
-
-func calculate(a, b float64, operator string, f *Future, sem chan struct{}) {
-	defer func() { <-sem }()
-	switch operator {
-	case "+":
-		t, err := strconv.Atoi(os.Getenv("TIME_ADDITION_MS"))
-		if err != nil {
-			t = 1000
-		}
-		time.Sleep(time.Duration(t) * time.Millisecond)
-		f.SetResult(a+b, nil)
-	case "-":
-		t, err := strconv.Atoi(os.Getenv("TIME_SUBTRACTION_MS"))
-		if err != nil {
-			t = 1000
-		}
-		time.Sleep(time.Duration(t) * time.Millisecond)
-		f.SetResult(a-b, nil)
-	case "*":
-		t, err := strconv.Atoi(os.Getenv("TIME_MULTIPLICATIONS_MS"))
-		if err != nil {
-			t = 1000
-		}
-		time.Sleep(time.Duration(t) * time.Millisecond)
-		f.SetResult(a*b, nil)
-	case "/":
-		if b == 0 {
-			f.SetResult(0, errors.New("division by zero"))
-		}
-		t, err := strconv.Atoi(os.Getenv("TIME_DIVISIONS_MS"))
-		if err != nil {
-			t = 1000
-		}
-		time.Sleep(time.Duration(t) * time.Millisecond)
-		f.SetResult(a/b, nil)
-	default:
-		f.SetResult(0, errors.New("unknown operator: "+operator))
-	}
-}
-
-func WrapValueAsFuture(val float64) *Future {
-	future := NewFuture()
-	future.SetResult(val, nil)
+func WrapValueAsFuture(val float64) *global.Future {
+	future := global.NewFuture()
+	future.SetResult(val)
 	return future
 }
 
 func evalRPN(tokens []token) (float64, error) {
-	var stack []*Future
-	n, err := strconv.Atoi(os.Getenv("COMPUTING_POWER"))
-	if err != nil {
-		n = 10
-	}
-	sem := make(chan struct{}, n)
+	var stack []*global.Future
 	for _, tok := range tokens {
 		switch tok.typ {
 		case tokenNumber:
@@ -204,32 +144,59 @@ func evalRPN(tokens []token) (float64, error) {
 			if len(stack) < 2 {
 				return 0, errors.New("invalid expression")
 			}
-			b, err := stack[len(stack)-1].Get()
-			if err != nil {
-				return 0, err
-			}
-			a, err := stack[len(stack)-2].Get()
-			if err != nil {
-				return 0, err
-			}
+			b := stack[len(stack)-1].Get()
+			a := stack[len(stack)-2].Get()
 			stack = stack[:len(stack)-2]
-			sem <- struct{}{}
-			future := NewFuture()
+			future := global.NewFuture()
 			stack = append(stack, future)
-			go calculate(a, b, tok.val, future, sem)
+			var err error
+			t := 1000
+			switch tok.val {
+			case "+":
+				t, err = strconv.Atoi(os.Getenv("TIME_ADDITION_MS"))
+				if err != nil {
+					t = 1000
+				}
+			case "-":
+				t, err = strconv.Atoi(os.Getenv("TIME_SUBTRACTION_MS"))
+				if err != nil {
+					t = 1000
+				}
+			case "*":
+				t, err = strconv.Atoi(os.Getenv("TIME_MULTIPLICATIONS_MS"))
+				if err != nil {
+					t = 1000
+				}
+			case "/":
+				t, err = strconv.Atoi(os.Getenv("TIME_DIVISIONS_MS"))
+				if b == 0 {
+					return 0, errors.New("division by zero")
+				}
+				if err != nil {
+					t = 1000
+				}
+			default:
+				return 0, errors.New("unknown operator: " + tok.val)
+			}
+			task := global.Task{
+				ID:            uuid.New().String(),
+				Arg1:          a,
+				Arg2:          b,
+				Operation:     tok.val,
+				OperationTime: t,
+			}
+			global.TasksMap.Store(task.ID, &task)
+			global.FuturesMap.Store(task.ID, future)
 		}
 	}
 	if len(stack) != 1 {
 		return 0, errors.New("invalid expression")
 	}
-	result, err := stack[0].Get()
-	if err != nil {
-		return 0, err
-	}
+	result := stack[0].Get()
 	return result, nil
 }
 
-func Calc(expression *structures.Expression) {
+func Calc(expression *global.Expression) {
 	expression.Status = "processing"
 	tokens, err := tokenize(expression.Data)
 	if err != nil {
