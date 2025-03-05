@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// clearGlobalMaps очищает глобальные мэп-объекты между тестами.
 func clearGlobalMaps() {
 	global.TasksMap.Range(func(key, value interface{}) bool {
 		global.TasksMap.Delete(key)
@@ -22,8 +21,6 @@ func clearGlobalMaps() {
 	})
 }
 
-// processTasks имитирует работу агента: проходит по всем задачам,
-// вычисляет результат операции и устанавливает его в соответствующем future.
 func processTasks() {
 	global.TasksMap.Range(func(key, value interface{}) bool {
 		task := value.(*global.Task)
@@ -48,11 +45,9 @@ func processTasks() {
 }
 
 func TestMain(m *testing.M) {
-	// Инициализируем логгеры, используя os.DevNull для отсутствия log‑файлов.
 	loggers.InitLogger("orchestrator", os.DevNull)
 	loggers.InitLogger("server", os.DevNull)
 	loggers.InitLogger("general", os.DevNull)
-
 	code := m.Run()
 	loggers.CloseAllLoggers()
 	os.Exit(code)

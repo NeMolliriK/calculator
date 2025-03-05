@@ -16,7 +16,6 @@ func TestCalculate(t *testing.T) {
 	wg.Add(1)
 	var receivedID string
 	var receivedResult float64
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("/internal/task", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -30,7 +29,6 @@ func TestCalculate(t *testing.T) {
 			wg.Done()
 		}
 	})
-
 	listener, err := net.Listen("tcp", "127.0.0.1:8080")
 	if err != nil {
 		t.Fatalf("failed to listen on port 8080: %v", err)
@@ -41,11 +39,9 @@ func TestCalculate(t *testing.T) {
 	}
 	testServer.Start()
 	defer testServer.Close()
-
 	taskID := "test-task-id"
-	operationTime := 10 // короткое время выполнения
+	operationTime := 10
 	calculate(taskID, 3, 4, "+", operationTime)
-
 	wg.Wait()
 	if receivedID != taskID {
 		t.Errorf("expected ID %s, got %s", taskID, receivedID)
@@ -55,7 +51,6 @@ func TestCalculate(t *testing.T) {
 	}
 }
 
-// TestGetTask проверяет функцию getTask, имитируя GET /internal/task.
 func TestGetTask(t *testing.T) {
 	task := global.Task{
 		ID:            "test-task-2",
@@ -80,7 +75,6 @@ func TestGetTask(t *testing.T) {
 	}
 	testServer.Start()
 	defer testServer.Close()
-
 	gotTask := getTask()
 	if gotTask == nil {
 		t.Fatal("expected task, got nil")

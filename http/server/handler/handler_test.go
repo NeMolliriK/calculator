@@ -13,7 +13,6 @@ import (
 	"testing"
 )
 
-// clearGlobalMaps очищает глобальные мэп-объекты между тестами.
 func clearGlobalMaps() {
 	global.TasksMap.Range(func(key, value interface{}) bool {
 		global.TasksMap.Delete(key)
@@ -26,7 +25,6 @@ func clearGlobalMaps() {
 }
 
 func TestMain(m *testing.M) {
-	// Инициализируем логгеры, используя os.DevNull
 	loggers.InitLogger("orchestrator", os.DevNull)
 	loggers.InitLogger("server", os.DevNull)
 	loggers.InitLogger("general", os.DevNull)
