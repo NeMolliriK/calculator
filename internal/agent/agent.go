@@ -5,7 +5,11 @@ import (
 	"calculator/http/server/handler"
 	"calculator/pkg/global"
 	"encoding/json"
+	"fmt"
+	"github.com/joho/godotenv"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -43,10 +47,23 @@ func calculate(id string, a, b float64, operator string, operationTime int) {
 }
 
 func Run() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Warning: .env file not found, falling back to system environment variables")
+	}
+	n, err := strconv.Atoi(os.Getenv("COMPUTING_POWER"))
+	if err != nil {
+		n = 10
+	}
+	sem := make(chan struct{}, n)
 	for {
 		task := getTask()
 		if task != nil {
-			go calculate(task.ID, task.Arg1, task.Arg2, task.Operation, task.OperationTime)
+			sem <- struct{}{}
+			go func(id string, a, b float64, operator string, operationTime int) {
+				defer func() { <-sem }()
+				calculate(id, a, b, operator, operationTime)
+			}(task.ID, task.Arg1, task.Arg2, task.Operation, task.OperationTime)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
