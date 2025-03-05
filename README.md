@@ -30,9 +30,10 @@ cd calculator
 go mod download github.com/joho/godotenv
 go mod download github.com/google/uuid
 ```
-4. Запустите сервис командой:
+4. Запустите сервисы командой:
 ```bash
-go run cmd/main.go
+start go run cmd/orchestrator/main.go
+start go run cmd/agent/main.go
 ```
 5. По умолчанию сервис будет доступен на `http://localhost:8080`.
 
