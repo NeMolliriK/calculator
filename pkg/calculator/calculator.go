@@ -1,6 +1,7 @@
 package calculator
 
 import (
+	"calculator/internal/database"
 	"calculator/pkg/global"
 	"calculator/pkg/loggers"
 	"errors"
@@ -196,23 +197,45 @@ func evalRPN(tokens []token) (float64, error) {
 	return result, nil
 }
 
-func Calc(expression *global.Expression) {
-	expression.Status = "processing"
+func Calc(expressionID string) {
+	err := database.UpdateExpressionStatus(database.DB, expressionID, "processing")
+	if err != nil {
+		panic(err)
+	}
+	expression, err := database.GetExpressionByID(database.DB, expressionID)
+	if err != nil {
+		panic(err)
+	}
 	tokens, err := tokenize(expression.Data)
 	if err != nil {
-		expression.Status = "calculation error: " + err.Error()
+		err := database.UpdateExpressionStatus(database.DB, expressionID, "calculation error: "+err.Error())
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 	rpn, err := shuntingYard(tokens)
 	if err != nil {
-		expression.Status = "calculation error: " + err.Error()
+		err := database.UpdateExpressionStatus(database.DB, expressionID, "calculation error: "+err.Error())
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 	res, err := evalRPN(rpn)
 	if err != nil {
-		expression.Status = "calculation error: " + err.Error()
+		err := database.UpdateExpressionStatus(database.DB, expressionID, "calculation error: "+err.Error())
+		if err != nil {
+			panic(err)
+		}
 	} else {
-		expression.Status = "completed"
+		err := database.UpdateExpressionStatus(database.DB, expressionID, "completed")
+		if err != nil {
+			panic(err)
+		}
 	}
-	expression.Result = res
+	err = database.UpdateExpressionResult(database.DB, expressionID, res)
+	if err != nil {
+		panic(err)
+	}
 }

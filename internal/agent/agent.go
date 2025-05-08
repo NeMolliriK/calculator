@@ -6,11 +6,12 @@ import (
 	"calculator/pkg/global"
 	"encoding/json"
 	"fmt"
-	"github.com/joho/godotenv"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func getTask() *global.Task {

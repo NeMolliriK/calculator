@@ -1,6 +1,6 @@
 package global
 
-type Expression struct {
+type ExpressionDTO struct {
 	ID     string
 	Data   string
 	Status string
