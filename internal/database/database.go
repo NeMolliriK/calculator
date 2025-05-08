@@ -21,5 +21,19 @@ func Init() {
 		logger.Error("migration error:", err)
 		panic(err)
 	}
+	expressions, err := GetAllExpressions(DB)
+	if err != nil {
+		logger.Error("failed to get all expressions", err)
+		panic(err)
+	}
+	for _, expression := range expressions {
+		if expression.Status == "processing" {
+			err = UpdateExpressionStatus(DB, expression.ID, "failed due to a server error")
+			if err != nil {
+				logger.Error("failed to change status", err)
+				panic(err)
+			}
+		}
+	}
 	logger.Info("database initialized")
 }
