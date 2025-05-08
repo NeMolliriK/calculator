@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"calculator/internal/database"
 	"calculator/pkg/calculator"
 	"calculator/pkg/global"
 	"context"
@@ -9,7 +10,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/google/uuid"
 )
@@ -54,7 +54,6 @@ type SolvedTaskResponse struct {
 }
 
 var (
-	expressionsMap sync.Map
 	//go:embed templates/*
 	webFiles embed.FS
 )
@@ -103,15 +102,17 @@ func calculatorAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expressionID := uuid.New().String()
-	expression := global.Expression{
-		ID:     expressionID,
-		Data:   data.Expression,
-		Status: "pending",
-		Result: 0,
+	err = database.CreateExpression(
+		database.DB,
+		&database.Expression{ID: expressionID, Data: data.Expression, Status: "pending"},
+	)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorData{Error: err.Error()})
+		return
 	}
-	expressionsMap.Store(expressionID, &expression)
 	w.WriteHeader(http.StatusCreated)
-	go calculator.Calc(&expression)
+	go calculator.Calc(expressionID)
 	json.NewEncoder(w).Encode(IDResponse{expressionID})
 }
 
@@ -122,17 +123,20 @@ func expressionsHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorData{Error: "only GET method is allowed"})
 		return
 	}
-	expressions := ExpressionsResponse{}
-	expressionsMap.Range(func(key, value interface{}) bool {
-		k := key.(string)
-		v := value.(*global.Expression)
-		expressions.Expressions = append(
-			expressions.Expressions,
-			ExpressionResponse{k, v.Status, v.Result},
+	expressions, err := database.GetAllExpressions(database.DB)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorData{Error: err.Error()})
+		return
+	}
+	expressionsResponse := ExpressionsResponse{}
+	for _, expression := range expressions {
+		expressionsResponse.Expressions = append(
+			expressionsResponse.Expressions,
+			ExpressionResponse{expression.ID, expression.Status, expression.Result},
 		)
-		return true
-	})
-	json.NewEncoder(w).Encode(expressions)
+	}
+	json.NewEncoder(w).Encode(expressionsResponse)
 }
 
 func expressionHandler(w http.ResponseWriter, r *http.Request) {
@@ -147,13 +151,12 @@ func expressionHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorData{Error: "ID not provided"})
 		return
 	}
-	value, ok := expressionsMap.Load(parts[4])
-	if !ok {
+	expression, err := database.GetExpressionByID(database.DB, parts[4])
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(ErrorData{Error: "there is no such expression"})
 		return
 	}
-	expression := value.(*global.Expression)
 	json.NewEncoder(w).Encode(ExpressionResponse{parts[4], expression.Status, expression.Result})
 }
 

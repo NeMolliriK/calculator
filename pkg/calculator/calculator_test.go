@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 
 func TestCalcSimple(t *testing.T) {
 	clearGlobalMaps()
-	expr := &global.Expression{
+	expr := &global.ExpressionDTO{
 		Data:   "2+2*2",
 		Status: "pending",
 	}
@@ -90,7 +90,7 @@ func TestCalcSimple(t *testing.T) {
 
 func TestCalcWithParentheses(t *testing.T) {
 	clearGlobalMaps()
-	expr := &global.Expression{
+	expr := &global.ExpressionDTO{
 		Data:   "2*(3+4)",
 		Status: "pending",
 	}
@@ -125,7 +125,7 @@ func TestCalcWithParentheses(t *testing.T) {
 
 func TestCalcDivision(t *testing.T) {
 	clearGlobalMaps()
-	expr := &global.Expression{
+	expr := &global.ExpressionDTO{
 		Data:   "8/2",
 		Status: "pending",
 	}
@@ -160,7 +160,7 @@ func TestCalcDivision(t *testing.T) {
 
 func TestCalcDivisionByZero(t *testing.T) {
 	clearGlobalMaps()
-	expr := &global.Expression{
+	expr := &global.ExpressionDTO{
 		Data:   "10/0",
 		Status: "pending",
 	}
@@ -192,7 +192,7 @@ func TestCalcDivisionByZero(t *testing.T) {
 
 func TestCalcInvalidExpression(t *testing.T) {
 	clearGlobalMaps()
-	expr := &global.Expression{
+	expr := &global.ExpressionDTO{
 		Data:   "2+",
 		Status: "pending",
 	}
@@ -213,7 +213,7 @@ func TestCalcInvalidExpression(t *testing.T) {
 
 func TestCalcInvalidNumberFormat(t *testing.T) {
 	clearGlobalMaps()
-	expr := &global.Expression{
+	expr := &global.ExpressionDTO{
 		Data:   "2..2+3",
 		Status: "pending",
 	}
