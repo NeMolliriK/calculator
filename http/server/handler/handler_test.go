@@ -112,7 +112,7 @@ func TestExpressionsEndpoint(t *testing.T) {
 		Expressions []struct {
 			ID     string  `json:"id"`
 			Status string  `json:"status"`
-			Result float64 `json:"result"`
+			Result float64 `json:"Result"`
 		} `json:"expressions"`
 	}
 	err = json.Unmarshal(rrGet.Body.Bytes(), &exprsResp)

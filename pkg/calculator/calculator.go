@@ -125,7 +125,7 @@ func shuntingYard(tokens []token) ([]token, error) {
 	return output, nil
 }
 
-func WrapValueAsFuture(val float64) *global.Future {
+func wrapValueAsFuture(val float64) *global.Future {
 	future := global.NewFuture()
 	future.SetResult(val)
 	return future
@@ -140,7 +140,7 @@ func evalRPN(tokens []token) (float64, error) {
 			if err != nil {
 				return 0, err
 			}
-			stack = append(stack, WrapValueAsFuture(num))
+			stack = append(stack, wrapValueAsFuture(num))
 		case tokenOperator:
 			if len(stack) < 2 {
 				return 0, errors.New("invalid expression")
@@ -198,17 +198,17 @@ func evalRPN(tokens []token) (float64, error) {
 }
 
 func Calc(expressionID string) {
-	err := database.UpdateExpressionStatus(database.DB, expressionID, "processing")
+	err := database.UpdateExpressionStatus(expressionID, "processing")
 	if err != nil {
 		panic(err)
 	}
-	expression, err := database.GetExpressionByID(database.DB, expressionID)
+	expression, err := database.GetExpressionByID(expressionID)
 	if err != nil {
 		panic(err)
 	}
 	tokens, err := tokenize(expression.Data)
 	if err != nil {
-		err := database.UpdateExpressionStatus(database.DB, expressionID, "calculation error: "+err.Error())
+		err := database.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
 		if err != nil {
 			panic(err)
 		}
@@ -216,7 +216,7 @@ func Calc(expressionID string) {
 	}
 	rpn, err := shuntingYard(tokens)
 	if err != nil {
-		err := database.UpdateExpressionStatus(database.DB, expressionID, "calculation error: "+err.Error())
+		err := database.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
 		if err != nil {
 			panic(err)
 		}
@@ -224,17 +224,17 @@ func Calc(expressionID string) {
 	}
 	res, err := evalRPN(rpn)
 	if err != nil {
-		err := database.UpdateExpressionStatus(database.DB, expressionID, "calculation error: "+err.Error())
+		err := database.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		err := database.UpdateExpressionStatus(database.DB, expressionID, "completed")
+		err := database.UpdateExpressionStatus(expressionID, "completed")
 		if err != nil {
 			panic(err)
 		}
 	}
-	err = database.UpdateExpressionResult(database.DB, expressionID, res)
+	err = database.UpdateExpressionResult(expressionID, res)
 	if err != nil {
 		panic(err)
 	}

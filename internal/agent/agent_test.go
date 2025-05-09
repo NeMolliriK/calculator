@@ -83,7 +83,13 @@ func TestGetTask(t *testing.T) {
 		t.Errorf("expected task ID %s, got %s", task.ID, gotTask.ID)
 	}
 	if gotTask.Arg1 != task.Arg1 || gotTask.Arg2 != task.Arg2 {
-		t.Errorf("expected task arguments %f, %f, got %f, %f", task.Arg1, task.Arg2, gotTask.Arg1, gotTask.Arg2)
+		t.Errorf(
+			"expected task arguments %f, %f, got %f, %f",
+			task.Arg1,
+			task.Arg2,
+			gotTask.Arg1,
+			gotTask.Arg2,
+		)
 	}
 	if gotTask.Operation != task.Operation {
 		t.Errorf("expected operation %s, got %s", task.Operation, gotTask.Operation)

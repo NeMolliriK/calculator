@@ -7,7 +7,10 @@ import (
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
+var (
+	Users *gorm.DB
+	DB    *gorm.DB
+)
 
 func Init() {
 	var err error
@@ -21,14 +24,14 @@ func Init() {
 		logger.Error("migration error:", err)
 		panic(err)
 	}
-	expressions, err := GetAllExpressions(DB)
+	expressions, err := GetAllExpressions()
 	if err != nil {
 		logger.Error("failed to get all expressions", err)
 		panic(err)
 	}
 	for _, expression := range expressions {
 		if expression.Status == "processing" {
-			err = UpdateExpressionStatus(DB, expression.ID, "failed due to a server error")
+			err = UpdateExpressionStatus(expression.ID, "failed due to a server error")
 			if err != nil {
 				logger.Error("failed to change status", err)
 				panic(err)
@@ -36,4 +39,14 @@ func Init() {
 		}
 	}
 	logger.Info("database initialized")
+	Users, err = gorm.Open(sqlite.Open("users.db?_pragma=foreign_keys(ON)"), &gorm.Config{})
+	if err != nil {
+		logger.Error("failed to connect to the database:", err)
+		panic(err)
+	}
+	if err := Users.AutoMigrate(&User{}); err != nil {
+		logger.Error("migration error:", err)
+		panic(err)
+	}
+	logger.Info("database users initialized")
 }
