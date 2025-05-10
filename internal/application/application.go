@@ -1,7 +1,7 @@
 package application
 
 import (
-	"calculator/http/server"
+	"calculator/internal/http/server"
 	"calculator/pkg/loggers"
 	"context"
 	"os"

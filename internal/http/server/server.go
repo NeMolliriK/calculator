@@ -1,8 +1,8 @@
 package server
 
 import (
-	"calculator/http/server/handler"
-	"calculator/http/server/middleware"
+	"calculator/internal/http/server/handler"
+	middleware2 "calculator/internal/http/server/middleware"
 	"calculator/pkg/loggers"
 	"context"
 	"fmt"
@@ -18,8 +18,8 @@ func new(ctx context.Context) (http.Handler, error) {
 	}
 	muxHandler = handler.Decorate(
 		muxHandler,
-		middleware.ErrorRecoveryMiddleware(),
-		middleware.LoggingMiddleware(),
+		middleware2.ErrorRecoveryMiddleware(),
+		middleware2.LoggingMiddleware(),
 	)
 	return muxHandler, nil
 }
