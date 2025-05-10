@@ -7,24 +7,22 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	Users *gorm.DB
-	DB    *gorm.DB
-)
+var DB *gorm.DB
 
 func Init() {
 	var err error
 	logger := loggers.GetLogger("general")
-	DB, err = gorm.Open(sqlite.Open("expressions.db?_pragma=foreign_keys(ON)"), &gorm.Config{})
+	DB, err = gorm.Open(sqlite.Open("sqlite.db?_pragma=foreign_keys(ON)"), &gorm.Config{})
 	if err != nil {
 		logger.Error("failed to connect to the database:", err)
 		panic(err)
 	}
-	if err := DB.AutoMigrate(&Expression{}); err != nil {
+	if err := DB.AutoMigrate(&Expression{}, &User{}); err != nil {
 		logger.Error("migration error:", err)
 		panic(err)
 	}
-	expressions, err := GetAllExpressions()
+	var expressions []Expression
+	err = DB.Find(&expressions).Error
 	if err != nil {
 		logger.Error("failed to get all expressions", err)
 		panic(err)
@@ -39,14 +37,4 @@ func Init() {
 		}
 	}
 	logger.Info("database initialized")
-	Users, err = gorm.Open(sqlite.Open("users.db?_pragma=foreign_keys(ON)"), &gorm.Config{})
-	if err != nil {
-		logger.Error("failed to connect to the database:", err)
-		panic(err)
-	}
-	if err := Users.AutoMigrate(&User{}); err != nil {
-		logger.Error("migration error:", err)
-		panic(err)
-	}
-	logger.Info("database users initialized")
 }

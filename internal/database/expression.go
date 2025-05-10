@@ -5,14 +5,20 @@ import (
 )
 
 type Expression struct {
-	ID     string  `gorm:"primaryKey"`
+	ID     string `gorm:"primaryKey"`
+	UserID uint
+	User   User    `gorm:"constraint:OnDelete:CASCADE"`
 	Data   string  `gorm:"not null"`
 	Status string  `gorm:"not null"`
 	Result float64 `gorm:"not null"`
 }
 
-func NewExpressionFromDTO(dto global.ExpressionDTO) *Expression {
-	return &Expression{dto.ID, dto.Data, dto.Status, dto.Result}
+func NewExpressionFromDTO(dto global.ExpressionDTO, userID uint) *Expression {
+	user, err := GetUserByID(userID)
+	if err != nil {
+		panic(err)
+	}
+	return &Expression{dto.ID, userID, *user, dto.Data, dto.Status, dto.Result}
 }
 
 func (e *Expression) ToDTO() global.ExpressionDTO {
@@ -40,8 +46,8 @@ func UpdateExpressionResult(id string, result float64) error {
 	return DB.Model(&Expression{}).Where("id = ?", id).Update("result", result).Error
 }
 
-func GetAllExpressions() ([]Expression, error) {
+func GetAllExpressions(userID uint) ([]Expression, error) {
 	var expressions []Expression
-	err := DB.Find(&expressions).Error
+	err := DB.Find(&expressions, "user_id = ?", userID).Error
 	return expressions, err
 }

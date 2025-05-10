@@ -40,7 +40,7 @@ func JWTMiddleware() func(http.HandlerFunc) http.HandlerFunc {
 				json.NewEncoder(w).Encode(errorData{Error: "invalid claims"})
 				return
 			}
-			ctx := context.WithValue(r.Context(), UserIDKey, int(userID))
+			ctx := context.WithValue(r.Context(), UserIDKey, uint(userID))
 			next(w, r.WithContext(ctx))
 		}
 	}

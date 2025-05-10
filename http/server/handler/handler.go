@@ -76,13 +76,6 @@ var (
 
 func New(ctx context.Context) (http.Handler, error) {
 	serveMux := http.NewServeMux()
-	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" && r.Method == http.MethodGet {
-			indexHandler(w, r)
-			return
-		}
-		http.NotFound(w, r)
-	})
 	serveMux.HandleFunc("/api/v1/calculate", middleware.JWTMiddleware()(calculatorAPIHandler))
 	serveMux.HandleFunc("/api/v1/expressions", middleware.JWTMiddleware()(expressionsHandler))
 	serveMux.HandleFunc("/api/v1/expressions/", middleware.JWTMiddleware()(expressionHandler))
@@ -120,8 +113,20 @@ func calculatorAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expressionID := uuid.New().String()
+	userIDRaw := r.Context().Value(middleware.UserIDKey)
+	userID, ok := userIDRaw.(uint)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(errorData{Error: "user ID not found"})
+		return
+	}
 	err = database.CreateExpression(
-		&database.Expression{ID: expressionID, Data: data.Expression, Status: "pending"},
+		&database.Expression{
+			ID:     expressionID,
+			UserID: userID,
+			Data:   data.Expression,
+			Status: "pending",
+		},
 	)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -140,7 +145,14 @@ func expressionsHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(errorData{Error: "only GET method is allowed"})
 		return
 	}
-	expressions, err := database.GetAllExpressions()
+	userIDRaw := r.Context().Value(middleware.UserIDKey)
+	userID, ok := userIDRaw.(uint)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(errorData{Error: "user ID not found"})
+		return
+	}
+	expressions, err := database.GetAllExpressions(userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(errorData{Error: err.Error()})
@@ -173,6 +185,18 @@ func expressionHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(errorData{Error: "there is no such expression"})
+		return
+	}
+	userIDRaw := r.Context().Value(middleware.UserIDKey)
+	userID, ok := userIDRaw.(uint)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(errorData{Error: "user ID not found"})
+		return
+	}
+	if expression.UserID != userID {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(errorData{Error: "you do not have access to this information"})
 		return
 	}
 	json.NewEncoder(w).Encode(expressionResponse{parts[4], expression.Status, expression.Result})
@@ -274,14 +298,4 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(tokenData{Info: "OK", Token: token})
-}
-
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := webFiles.ReadFile("templates/index.html")
-	if err != nil {
-		http.Error(w, "index.html not found", http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(data)
 }
