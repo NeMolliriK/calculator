@@ -121,12 +121,12 @@ go run cmd/agent/main.go
     {
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "status": "completed",
-      "result": 6
+      "Result": 6
     },
     {
       "id": "z9y8x7w6-v5u4-3210-tsrq-ponmlkjihgfe",
       "status": "pending",
-      "result": 0
+      "Result": 0
     }
   ]
 }
@@ -146,7 +146,7 @@ go run cmd/agent/main.go
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "status": "completed",
-  "result": 6
+  "Result": 6
 }
 ```
 

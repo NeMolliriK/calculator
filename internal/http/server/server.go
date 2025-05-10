@@ -1,0 +1,45 @@
+package server
+
+import (
+	"calculator/internal/http/server/handler"
+	middleware2 "calculator/internal/http/server/middleware"
+	"calculator/pkg/loggers"
+	"context"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+)
+
+func new(ctx context.Context) (http.Handler, error) {
+	muxHandler, err := handler.New(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("handler initialization error: %w", err)
+	}
+	muxHandler = handler.Decorate(
+		muxHandler,
+		middleware2.ErrorRecoveryMiddleware(),
+		middleware2.LoggingMiddleware(),
+	)
+	return muxHandler, nil
+}
+
+func Run(ctx context.Context) (func(context.Context) error, error) {
+	muxHandler, err := new(ctx)
+	if err != nil {
+		return nil, err
+	}
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	srv := &http.Server{Addr: ":" + port, Handler: muxHandler}
+	logger := loggers.GetLogger("server")
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			logger.Error("ListenAndServe", slog.String("err", err.Error()))
+		}
+	}()
+	fmt.Printf("The server is running at http://localhost:%s/", port)
+	return srv.Shutdown, nil
+}
