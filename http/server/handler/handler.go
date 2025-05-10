@@ -8,7 +8,6 @@ import (
 	"calculator/pkg/calculator"
 	"calculator/pkg/global"
 	"context"
-	"embed"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -68,11 +67,6 @@ type credentials struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
 }
-
-var (
-	//go:embed templates/*
-	webFiles embed.FS
-)
 
 func New(ctx context.Context) (http.Handler, error) {
 	serveMux := http.NewServeMux()
