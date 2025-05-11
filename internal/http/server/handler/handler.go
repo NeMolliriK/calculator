@@ -6,7 +6,6 @@ import (
 	"calculator/internal/database"
 	"calculator/internal/http/server/middleware"
 	"calculator/pkg/calculator"
-	"calculator/pkg/global"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -75,7 +74,6 @@ func New(ctx context.Context) (http.Handler, error) {
 	serveMux.HandleFunc("/api/v1/expressions/", middleware.JWTMiddleware()(expressionHandler))
 	serveMux.HandleFunc("/api/v1/register", registerHandler)
 	serveMux.HandleFunc("/api/v1/login", loginHandler)
-	serveMux.HandleFunc("/internal/task", taskHandler)
 	return serveMux, nil
 }
 
@@ -194,47 +192,6 @@ func expressionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(expressionResponse{parts[4], expression.Status, expression.Result})
-}
-
-func taskHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if r.Method == http.MethodGet {
-		var count int
-		global.TasksMap.Range(func(key, value interface{}) bool {
-			count++
-			k := key.(string)
-			v := value.(*global.Task)
-			json.NewEncoder(w).Encode(v)
-			global.TasksMap.Delete(k)
-			return false
-		})
-		if count == 0 {
-			w.WriteHeader(http.StatusNotFound)
-		}
-	} else if r.Method == http.MethodPost {
-		var data SolvedTaskResponse
-		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(errorData{Error: "invalid JSON"})
-			return
-		}
-		futureInterface, ok := global.FuturesMap.Load(data.ID)
-		if !ok {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(errorData{Error: "there is no such task"})
-			return
-		}
-		future, ok := futureInterface.(*global.Future)
-		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(errorData{Error: "server error"})
-			return
-		}
-		future.SetResult(data.Result)
-	} else {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(errorData{Error: "only GET and POST methods are allowed"})
-	}
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
