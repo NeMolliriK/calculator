@@ -2,6 +2,7 @@ package application
 
 import (
 	"calculator/internal/http/server"
+	rpcserver "calculator/internal/rpc"
 	"calculator/pkg/loggers"
 	"context"
 	"os"
@@ -15,22 +16,24 @@ func New() *Application {
 }
 func (a *Application) Run(ctx context.Context) int {
 	logger := loggers.GetLogger("general")
-	shutDownFunc, err := server.Run(ctx)
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+	defer stop()
+	httpShutdown, err := server.Run(ctx)
 	if err != nil {
 		logger.Error(err.Error())
 		return 1
 	}
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	ctx, cancel := context.WithCancel(context.Background())
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	<-c
-	cancel()
-	err = shutDownFunc(ctx)
+	grpcShutdown, err := rpcserver.Run(ctx)
 	if err != nil {
 		logger.Error(err.Error())
 		return 1
+	}
+	<-ctx.Done()
+	if err := grpcShutdown(context.Background()); err != nil {
+		logger.Error("gRPC shutdown: " + err.Error())
+	}
+	if err := httpShutdown(context.Background()); err != nil {
+		logger.Error("HTTP shutdown: " + err.Error())
 	}
 	return 0
 }

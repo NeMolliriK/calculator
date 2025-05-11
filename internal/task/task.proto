@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package task;
+
+option go_package = "calculator/internal/task;taskpb";
+
+message Empty {}
+
+message Task {
+  string  id             = 1;
+  double  arg1           = 2;
+  double  arg2           = 3;
+  string  operation      = 4;
+  int32   operation_time = 5;
+}
+
+message SolvedTask {
+  string id     = 1;
+  double result = 2;
+}
+
+service Orchestrator {
+  rpc GetTasks(Empty) returns (stream Task);
+  rpc SendResult(SolvedTask) returns (Empty);
+}
