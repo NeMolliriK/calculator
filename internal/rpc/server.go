@@ -1,8 +1,8 @@
 package rpc
 
 import (
-	taskpb "calculator/internal/task"
-	"calculator/pkg/global"
+	"calculator/internal/global"
+	"calculator/internal/task/taskpb"
 	"calculator/pkg/loggers"
 	"context"
 	"errors"
@@ -15,11 +15,21 @@ import (
 
 type server struct {
 	taskpb.UnimplementedOrchestratorServer
+	shutdownCtx context.Context
 }
 
 func (s *server) GetTasks(_ *taskpb.Empty, stream taskpb.Orchestrator_GetTasksServer) error {
+	clientCtx := stream.Context()
 	for {
+		select {
+		case <-clientCtx.Done():
+			return clientCtx.Err()
+		case <-s.shutdownCtx.Done():
+			return nil
+		default:
+		}
 		var sent bool
+		var sendErr error
 		global.TasksMap.Range(func(key, value any) bool {
 			task := value.(*global.Task)
 			if err := stream.Send(&taskpb.Task{
@@ -29,14 +39,17 @@ func (s *server) GetTasks(_ *taskpb.Empty, stream taskpb.Orchestrator_GetTasksSe
 				Operation:     task.Operation,
 				OperationTime: int32(task.OperationTime),
 			}); err != nil {
+				sendErr = err
 				return false
 			}
 			global.TasksMap.Delete(key)
 			sent = true
-			return false // однократно за итерацию цикла
+			return false
 		})
+		if sendErr != nil {
+			return sendErr
+		}
 		if !sent {
-			// если задач нет — небольшая пауза
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
@@ -55,7 +68,8 @@ func Run(ctx context.Context) (func(context.Context) error, error) {
 		return nil, err
 	}
 	grpcServer := grpc.NewServer()
-	taskpb.RegisterOrchestratorServer(grpcServer, &server{})
+	srv := &server{shutdownCtx: ctx}
+	taskpb.RegisterOrchestratorServer(grpcServer, srv)
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			loggers.GetLogger("orchestrator").Error("gRPC Serve", "err", err)

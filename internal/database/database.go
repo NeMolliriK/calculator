@@ -1,6 +1,7 @@
 package database
 
 import (
+	"calculator/pkg/calculator"
 	"calculator/pkg/loggers"
 
 	"gorm.io/driver/sqlite"
@@ -29,11 +30,7 @@ func Init() {
 	}
 	for _, expression := range expressions {
 		if expression.Status == "processing" {
-			err = UpdateExpressionStatus(expression.ID, "failed due to a server error")
-			if err != nil {
-				logger.Error("failed to change status", err)
-				panic(err)
-			}
+			go calculator.Calc(DBStore{}, expression.ID)
 		}
 	}
 	logger.Info("database initialized")

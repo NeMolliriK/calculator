@@ -1,8 +1,7 @@
 package calculator
 
 import (
-	"calculator/internal/database"
-	"calculator/pkg/global"
+	"calculator/internal/global"
 	"calculator/pkg/loggers"
 	"errors"
 	"os"
@@ -197,18 +196,24 @@ func evalRPN(tokens []token) (float64, error) {
 	return result, nil
 }
 
-func Calc(expressionID string) {
-	err := database.UpdateExpressionStatus(expressionID, "processing")
+type db interface {
+	UpdateExpressionStatus(id string, status string) error
+	GetExpressionByID(id string) (*global.ExpressionDTO, error)
+	UpdateExpressionResult(id string, result float64) error
+}
+
+func Calc(store db, expressionID string) {
+	err := store.UpdateExpressionStatus(expressionID, "processing")
 	if err != nil {
 		panic(err)
 	}
-	expression, err := database.GetExpressionByID(expressionID)
+	expression, err := store.GetExpressionByID(expressionID)
 	if err != nil {
 		panic(err)
 	}
 	tokens, err := tokenize(expression.Data)
 	if err != nil {
-		err := database.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
+		err := store.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
 		if err != nil {
 			panic(err)
 		}
@@ -216,7 +221,7 @@ func Calc(expressionID string) {
 	}
 	rpn, err := shuntingYard(tokens)
 	if err != nil {
-		err := database.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
+		err := store.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
 		if err != nil {
 			panic(err)
 		}
@@ -224,17 +229,17 @@ func Calc(expressionID string) {
 	}
 	res, err := evalRPN(rpn)
 	if err != nil {
-		err := database.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
+		err := store.UpdateExpressionStatus(expressionID, "calculation error: "+err.Error())
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		err := database.UpdateExpressionStatus(expressionID, "completed")
+		err := store.UpdateExpressionStatus(expressionID, "completed")
 		if err != nil {
 			panic(err)
 		}
 	}
-	err = database.UpdateExpressionResult(expressionID, res)
+	err = store.UpdateExpressionResult(expressionID, res)
 	if err != nil {
 		panic(err)
 	}

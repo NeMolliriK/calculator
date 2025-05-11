@@ -14,6 +14,7 @@ type Application struct{}
 func New() *Application {
 	return &Application{}
 }
+
 func (a *Application) Run(ctx context.Context) int {
 	logger := loggers.GetLogger("general")
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)

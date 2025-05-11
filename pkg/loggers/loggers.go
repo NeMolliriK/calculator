@@ -40,6 +40,7 @@ func InitLogger(name, file string) {
 	loggers[name] = logger
 	logFiles[name] = logFile
 }
+
 func GetLogger(name string) *slog.Logger {
 	mu.Lock()
 	defer mu.Unlock()
@@ -49,6 +50,7 @@ func GetLogger(name string) *slog.Logger {
 	}
 	return logger
 }
+
 func CloseAllLoggers() {
 	mu.Lock()
 	defer mu.Unlock()
