@@ -2,7 +2,7 @@ package handler
 
 import (
 	"bytes"
-	"calculator/internal/application/auth"
+	"calculator/internal/auth"
 	"calculator/internal/database"
 	"calculator/internal/http/server/middleware"
 	"calculator/pkg/calculator"
