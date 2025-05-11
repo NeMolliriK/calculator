@@ -2,7 +2,7 @@ package handler
 
 import (
 	"bytes"
-	"calculator/internal/application/auth"
+	"calculator/internal/auth"
 	"calculator/internal/database"
 	"calculator/internal/http/server/middleware"
 	"calculator/pkg/calculator"
@@ -126,7 +126,7 @@ func calculatorAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	go calculator.Calc(expressionID)
+	go calculator.Calc(database.DBStore{}, expressionID)
 	json.NewEncoder(w).Encode(idResponse{expressionID})
 }
 

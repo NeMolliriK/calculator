@@ -1,7 +1,7 @@
 package database
 
 import (
-	"calculator/pkg/global"
+	"calculator/internal/global"
 )
 
 type Expression struct {
@@ -13,29 +13,22 @@ type Expression struct {
 	Result float64 `gorm:"not null"`
 }
 
-func NewExpressionFromDTO(dto global.ExpressionDTO, userID uint) *Expression {
-	user, err := GetUserByID(userID)
-	if err != nil {
-		panic(err)
-	}
-	return &Expression{dto.ID, userID, *user, dto.Data, dto.Status, dto.Result}
-}
-
 func (e *Expression) ToDTO() global.ExpressionDTO {
-	return global.ExpressionDTO{ID: e.ID, Data: e.Data, Status: e.Status, Result: e.Result}
+	return global.ExpressionDTO{ID: e.ID, UserID: e.UserID, Data: e.Data, Status: e.Status, Result: e.Result}
 }
 
 func CreateExpression(expr *Expression) error {
 	return DB.Create(expr).Error
 }
 
-func GetExpressionByID(id string) (*Expression, error) {
+func GetExpressionByID(id string) (*global.ExpressionDTO, error) {
 	var expr Expression
 	err := DB.First(&expr, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
-	return &expr, nil
+	dto := expr.ToDTO()
+	return &dto, nil
 }
 
 func UpdateExpressionStatus(id string, status string) error {

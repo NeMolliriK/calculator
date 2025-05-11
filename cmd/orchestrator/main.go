@@ -15,6 +15,7 @@ func main() {
 	ctx := context.Background()
 	os.Exit(mainWithExitCode(ctx))
 }
+
 func mainWithExitCode(ctx context.Context) int {
 	err := godotenv.Load()
 	if err != nil {

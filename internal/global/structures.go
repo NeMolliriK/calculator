@@ -2,6 +2,7 @@ package global
 
 type ExpressionDTO struct {
 	ID     string
+	UserID uint
 	Data   string
 	Status string
 	Result float64

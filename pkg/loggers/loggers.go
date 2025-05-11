@@ -40,15 +40,16 @@ func InitLogger(name, file string) {
 	loggers[name] = logger
 	logFiles[name] = logFile
 }
+
 func GetLogger(name string) *slog.Logger {
 	mu.Lock()
 	defer mu.Unlock()
-	logger, exists := loggers[name]
-	if !exists {
-		panic("Logger not initialized: " + name)
+	if logger, exists := loggers[name]; exists {
+		return logger
 	}
-	return logger
+	panic("logger does not exist")
 }
+
 func CloseAllLoggers() {
 	mu.Lock()
 	defer mu.Unlock()
